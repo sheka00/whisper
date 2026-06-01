@@ -1,0 +1,23 @@
+
+services:
+  whisper-app:
+    build: .
+    container_name: whisper-app
+    ports:
+      - "18000:8000"
+    env_file:
+      - .env
+    volumes:
+      - huggingface_cache:/root/.cache/huggingface
+      - ./uploads:/app/uploads
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  huggingface_cache:
