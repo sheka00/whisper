@@ -149,7 +149,7 @@ async def transcribe(
         
         try:
             # 1. Preprocess file to 16kHz mono WAV (crucial for pyannote and Whisper)
-            yield json.dumps({"status": "processing", "message": "Подготовка аудио (конвертация в 16кГц)..."}) + "\n"
+            yield json.dumps({"status": "processing", "stage": "preprocess", "message": "Подготовка аудио (конвертация в 16кГц)..."}) + "\n"
             try:
                 processed_path = preprocess_audio(temp_file)
             except Exception as e:
@@ -159,7 +159,7 @@ async def transcribe(
             # Run speaker diarization if pipeline is loaded and requested
             speaker_segments = []
             if diarize and diarization_pipeline:
-                yield json.dumps({"status": "processing", "message": "Определение спикеров (диаризация)..."}) + "\n"
+                yield json.dumps({"status": "processing", "stage": "diarize", "message": "Определение спикеров (диаризация)..."}) + "\n"
                 try:
                     diarize_kwargs = {}
                     if num_speakers is not None:
@@ -182,15 +182,20 @@ async def transcribe(
                     print(f"Diarization finished. Found {len(speaker_segments)} segments.")
                 except Exception as e:
                     print(f"Warning: Diarization failed: {e}")
-                    yield json.dumps({"status": "processing", "message": f"Ошибка диаризации ({e}), продолжаем без нее..."}) + "\n"
+                    yield json.dumps({"status": "processing", "stage": "diarize_failed", "message": f"Ошибка диаризации ({e}), продолжаем без нее..."}) + "\n"
                     
             # 3. Transcribe
-            yield json.dumps({"status": "processing", "message": "Инициализация распознавания..."}) + "\n"
+            yield json.dumps({"status": "processing", "stage": "transcribe_init", "message": "Инициализация распознавания..."}) + "\n"
+            try:
+                batch_size = int(os.getenv("WHISPER_BATCH_SIZE", 8))
+            except ValueError:
+                batch_size = 8
+            
             segments, info = asr.transcribe(
                 str(processed_path),
                 language="ru",
                 beam_size=1,
-                batch_size=16
+                batch_size=batch_size
             )
             
             text_segments = []
@@ -228,6 +233,7 @@ async def transcribe(
                 # Yield current segment to show real-time progress
                 yield json.dumps({
                     "status": "processing",
+                    "stage": "transcribe",
                     "message": f"Распознано: \"{segment.text.strip()}\""
                 }) + "\n"
                 
@@ -244,6 +250,7 @@ async def transcribe(
             
             yield json.dumps({
                 "status": "completed",
+                "stage": "done",
                 "text": text,
                 "duration_seconds": round(duration, 2),
                 "filename": Path(file.filename).stem
@@ -258,6 +265,7 @@ async def transcribe(
                 processed_path.unlink()
             yield json.dumps({
                 "status": "error",
+                "stage": "error",
                 "message": f"Ошибка транскрибации: {str(e)}"
             }) + "\n"
 

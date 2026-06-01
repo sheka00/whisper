@@ -554,6 +554,7 @@
             display: flex;
             flex-direction: column;
             gap: 8px;
+            transition: opacity 0.3s ease;
         }
 
         .settings-item label {
@@ -576,6 +577,196 @@
         .settings-item input:focus {
             border-color: var(--secondary);
             box-shadow: 0 0 8px rgba(0, 242, 254, 0.2);
+        }
+
+        /* Pipeline / Checkpoints Styles */
+        .pipeline-container {
+            width: 100%;
+            margin: 20px 0 35px 0;
+            padding: 10px 0;
+        }
+
+        .pipeline-steps {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            width: 100%;
+        }
+
+        .step-node {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 2;
+            flex: 1;
+            transition: all 0.3s ease;
+        }
+
+        .step-circle {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 2px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            box-shadow: 0 0 0 rgba(138, 43, 226, 0);
+        }
+
+        .step-icon {
+            transition: all 0.3s ease;
+        }
+
+        .step-check {
+            display: none;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #00f2fe;
+            text-shadow: 0 0 10px rgba(0, 242, 254, 0.5);
+        }
+
+        .step-label {
+            margin-top: 10px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-align: center;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .step-line {
+            height: 2px;
+            background: rgba(255, 255, 255, 0.08);
+            flex-grow: 1;
+            margin: 0 -10px;
+            position: relative;
+            top: -15px;
+            z-index: 1;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Statuses */
+        .step-node[data-status="pending"] {
+            opacity: 0.35;
+        }
+
+        .step-node[data-status="active"] {
+            opacity: 1;
+        }
+
+        .step-node[data-status="active"] .step-circle {
+            background: rgba(138, 43, 226, 0.12);
+            border-color: var(--primary);
+            box-shadow: 0 0 20px var(--primary-glow);
+            transform: scale(1.1);
+            animation: pulseGlow 1.5s infinite alternate;
+        }
+
+        .step-node[data-status="active"] .step-label {
+            color: var(--text-main);
+            font-weight: 700;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.25);
+        }
+
+        .step-node[data-status="completed"] {
+            opacity: 1;
+        }
+
+        .step-node[data-status="completed"] .step-circle {
+            background: rgba(0, 242, 254, 0.1);
+            border-color: var(--secondary);
+            box-shadow: 0 0 15px var(--secondary-glow);
+        }
+
+        .step-node[data-status="completed"] .step-icon {
+            display: none;
+        }
+
+        .step-node[data-status="completed"] .step-check {
+            display: block;
+        }
+
+        .step-node[data-status="completed"] .step-label {
+            color: var(--secondary);
+            font-weight: 600;
+        }
+
+        .step-node[data-status="skipped"] {
+            opacity: 0.25;
+        }
+
+        .step-node[data-status="skipped"] .step-label {
+            text-decoration: line-through;
+            color: var(--text-muted);
+        }
+
+        /* Lines */
+        .step-line[data-status="active"] {
+            background: linear-gradient(90deg, var(--secondary), var(--primary));
+            box-shadow: 0 0 8px var(--primary-glow);
+            opacity: 1;
+        }
+
+        .step-line[data-status="completed"] {
+            background: var(--secondary);
+            box-shadow: 0 0 8px var(--secondary-glow);
+            opacity: 1;
+        }
+
+        .step-line[data-status="skipped"] {
+            background: rgba(255, 255, 255, 0.04);
+            border-top: 1px dashed rgba(255, 255, 255, 0.15);
+        }
+
+        @keyframes pulseGlow {
+            0% {
+                box-shadow: 0 0 12px var(--primary-glow);
+                border-color: var(--primary);
+            }
+            100% {
+                box-shadow: 0 0 20px var(--secondary-glow);
+                border-color: var(--secondary);
+            }
+        }
+
+        @media (max-width: 650px) {
+            .pipeline-steps {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 20px;
+                padding-left: 20px;
+            }
+            .step-node {
+                flex-direction: row;
+                gap: 15px;
+                align-items: center;
+                width: 100%;
+                flex: none;
+            }
+            .step-circle {
+                width: 44px;
+                height: 44px;
+                font-size: 1.1rem;
+            }
+            .step-label {
+                margin-top: 0;
+                text-align: left;
+            }
+            .step-line {
+                width: 2px;
+                height: 20px;
+                margin: -10px 0 -10px 20px;
+                top: 0;
+                left: 0;
+                flex-grow: 0;
+            }
         }
     </style>
 </head>
@@ -629,16 +820,62 @@
 
             <!-- Loading State -->
             <div class="loading-container" id="loading-state">
-                <div class="spinner-box">
-                    <div class="circle-border-1">
-                        <div class="circle-border-2">
-                            <div class="circle-core"></div>
+                <!-- Checkpoints Pipeline -->
+                <div class="pipeline-container">
+                    <div class="pipeline-steps">
+                        <div class="step-node" id="step-upload" data-status="pending">
+                            <div class="step-circle">
+                                <span class="step-icon">📤</span>
+                                <span class="step-check">✓</span>
+                            </div>
+                            <div class="step-label" id="label-upload">Загрузка</div>
+                        </div>
+                        
+                        <div class="step-line" id="line-upload-preprocess" data-status="pending"></div>
+                        
+                        <div class="step-node" id="step-preprocess" data-status="pending">
+                            <div class="step-circle">
+                                <span class="step-icon">⚙️</span>
+                                <span class="step-check">✓</span>
+                            </div>
+                            <div class="step-label" id="label-preprocess">Конвертация</div>
+                        </div>
+                        
+                        <div class="step-line" id="line-preprocess-diarize" data-status="pending"></div>
+                        
+                        <div class="step-node" id="step-diarize" data-status="pending">
+                            <div class="step-circle">
+                                <span class="step-icon">👥</span>
+                                <span class="step-check">✓</span>
+                            </div>
+                            <div class="step-label" id="label-diarize">Диаризация</div>
+                        </div>
+                        
+                        <div class="step-line" id="line-diarize-transcribe" data-status="pending"></div>
+                        
+                        <div class="step-node" id="step-transcribe" data-status="pending">
+                            <div class="step-circle">
+                                <span class="step-icon">🎙️</span>
+                                <span class="step-check">✓</span>
+                            </div>
+                            <div class="step-label" id="label-transcribe">Распознавание</div>
+                        </div>
+                        
+                        <div class="step-line" id="line-transcribe-done" data-status="pending"></div>
+                        
+                        <div class="step-node" id="step-done" data-status="pending">
+                            <div class="step-circle">
+                                <span class="step-icon">✨</span>
+                                <span class="step-check">✓</span>
+                            </div>
+                            <div class="step-label" id="label-done">Готово</div>
                         </div>
                     </div>
                 </div>
-                <div class="loading-title">Обработка файла</div>
-                <div class="loading-subtitle" id="loading-subtext">Загрузка файла на сервер...</div>
-                <div class="progress-bar-container" id="progress-container" style="display: none; width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; margin-top: 15px; overflow: hidden;">
+
+                <div class="loading-subtitle" id="loading-subtext" style="margin-top: 20px; font-weight: 500; font-size: 1rem; color: var(--text-main);">Загрузка файла на сервер...</div>
+                
+                <div class="progress-bar-container" id="progress-container" style="display: none; width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; margin-top: 20px; overflow: hidden;">
                     <div class="progress-bar-fill" id="progress-fill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); transition: width 0.1s ease; border-radius: 3px;"></div>
                 </div>
             </div>
@@ -698,12 +935,66 @@
             filename: ''
         };
 
-        function startLoadingMessages() {
-            loadingSubtext.innerText = "Подготовка...";
+        // Checkpoints / Pipeline UI Logic
+        function updatePipeline(step, status) {
+            const el = document.getElementById(`step-${step}`);
+            if (el) {
+                el.setAttribute('data-status', status);
+            }
+            updateLines();
         }
 
-        function stopLoadingMessages() {
-            // No-op
+        function updateLines() {
+            const getStatus = (stepId) => {
+                const el = document.getElementById(`step-${stepId}`);
+                return el ? el.getAttribute('data-status') : 'pending';
+            };
+            
+            const lines = [
+                { id: 'line-upload-preprocess', from: 'upload', to: 'preprocess' },
+                { id: 'line-preprocess-diarize', from: 'preprocess', to: 'diarize' },
+                { id: 'line-diarize-transcribe', from: 'diarize', to: 'transcribe' },
+                { id: 'line-transcribe-done', from: 'transcribe', to: 'done' }
+            ];
+            
+            lines.forEach(line => {
+                const lineEl = document.getElementById(line.id);
+                if (!lineEl) return;
+                
+                const fromStatus = getStatus(line.from);
+                const toStatus = getStatus(line.to);
+                
+                if (fromStatus === 'skipped' || toStatus === 'skipped') {
+                    lineEl.setAttribute('data-status', 'skipped');
+                } else if (fromStatus === 'completed' && toStatus === 'completed') {
+                    lineEl.setAttribute('data-status', 'completed');
+                } else if (fromStatus === 'completed' && toStatus === 'active') {
+                    lineEl.setAttribute('data-status', 'active');
+                } else {
+                    lineEl.setAttribute('data-status', 'pending');
+                }
+            });
+        }
+
+        function resetPipeline(diarizeEnabled) {
+            const steps = ['upload', 'preprocess', 'diarize', 'transcribe', 'done'];
+            steps.forEach(step => {
+                const el = document.getElementById(`step-${step}`);
+                if (el) {
+                    if (step === 'diarize' && !diarizeEnabled) {
+                        el.setAttribute('data-status', 'skipped');
+                        document.getElementById('label-diarize').innerText = 'Диаризация (Пропущена)';
+                    } else {
+                        el.setAttribute('data-status', 'pending');
+                        if (step === 'diarize') {
+                            document.getElementById('label-diarize').innerText = 'Диаризация';
+                        }
+                    }
+                }
+            });
+            
+            document.getElementById('label-upload').innerText = 'Загрузка';
+            updateLines();
         }
 
         // Drag and Drop handlers
@@ -761,6 +1052,10 @@
             progressContainer.style.display = 'block';
             progressFill.style.width = '0%';
             loadingSubtext.innerText = "Подготовка к загрузке...";
+            
+            // Initialize pipeline
+            resetPipeline(diarize);
+            updatePipeline('upload', 'active');
 
             const xhr = new XMLHttpRequest();
             xhr.open('POST', '/api/transcribe', true);
@@ -770,10 +1065,14 @@
                 if (e.lengthComputable) {
                     const percentComplete = Math.round((e.loaded / e.total) * 100);
                     progressFill.style.width = percentComplete + '%';
+                    document.getElementById('label-upload').innerText = `Загрузка (${percentComplete}%)`;
                     loadingSubtext.innerText = `Загрузка файла: ${percentComplete}%`;
                     
                     if (percentComplete >= 100) {
-                        loadingSubtext.innerText = "Файл загружен. Обработка на сервере...";
+                        document.getElementById('label-upload').innerText = `Загрузка`;
+                        updatePipeline('upload', 'completed');
+                        updatePipeline('preprocess', 'active');
+                        loadingSubtext.innerText = "Файл успешно загружен. Начинается конвертация...";
                     }
                 }
             };
@@ -799,6 +1098,37 @@
                             // Hide progress bar once server-side processing has started
                             progressContainer.style.display = 'none';
                             loadingSubtext.innerText = data.message;
+                            
+                            // Map backend stage to pipeline checkpoints
+                            if (data.stage === "preprocess") {
+                                updatePipeline('upload', 'completed');
+                                updatePipeline('preprocess', 'active');
+                            } else if (data.stage === "diarize") {
+                                updatePipeline('upload', 'completed');
+                                updatePipeline('preprocess', 'completed');
+                                updatePipeline('diarize', 'active');
+                            } else if (data.stage === "diarize_failed") {
+                                updatePipeline('diarize', 'skipped');
+                                document.getElementById('label-diarize').innerText = 'Диаризация (Сбой)';
+                            } else if (data.stage === "transcribe_init") {
+                                updatePipeline('upload', 'completed');
+                                updatePipeline('preprocess', 'completed');
+                                if (diarize) {
+                                    updatePipeline('diarize', 'completed');
+                                } else {
+                                    updatePipeline('diarize', 'skipped');
+                                }
+                                updatePipeline('transcribe', 'active');
+                            } else if (data.stage === "transcribe") {
+                                updatePipeline('upload', 'completed');
+                                updatePipeline('preprocess', 'completed');
+                                if (diarize) {
+                                    updatePipeline('diarize', 'completed');
+                                } else {
+                                    updatePipeline('diarize', 'skipped');
+                                }
+                                updatePipeline('transcribe', 'active');
+                            }
                         } else if (data.status === "completed") {
                             progressContainer.style.display = 'none';
                             loadingState.style.display = 'none';
@@ -908,6 +1238,43 @@
                 settingsGrid.classList.add('collapsed');
             }
         });
+
+        // Conditional validation for diarization speaker inputs
+        const numSpeakersInput = document.getElementById('num-speakers');
+        const minSpeakersInput = document.getElementById('min-speakers');
+        const maxSpeakersInput = document.getElementById('max-speakers');
+
+        function updateSpeakerInputsState() {
+            if (numSpeakersInput.value.trim() !== "") {
+                minSpeakersInput.disabled = true;
+                maxSpeakersInput.disabled = true;
+                minSpeakersInput.parentElement.style.opacity = "0.35";
+                maxSpeakersInput.parentElement.style.opacity = "0.35";
+            } else if (minSpeakersInput.value.trim() !== "" || maxSpeakersInput.value.trim() !== "") {
+                numSpeakersInput.disabled = true;
+                numSpeakersInput.parentElement.style.opacity = "0.35";
+                
+                minSpeakersInput.disabled = false;
+                maxSpeakersInput.disabled = false;
+                minSpeakersInput.parentElement.style.opacity = "1";
+                maxSpeakersInput.parentElement.style.opacity = "1";
+            } else {
+                numSpeakersInput.disabled = false;
+                minSpeakersInput.disabled = false;
+                maxSpeakersInput.disabled = false;
+                
+                numSpeakersInput.parentElement.style.opacity = "1";
+                minSpeakersInput.parentElement.style.opacity = "1";
+                maxSpeakersInput.parentElement.style.opacity = "1";
+            }
+        }
+
+        numSpeakersInput.addEventListener('input', updateSpeakerInputsState);
+        minSpeakersInput.addEventListener('input', updateSpeakerInputsState);
+        maxSpeakersInput.addEventListener('input', updateSpeakerInputsState);
+        
+        // Initial sync
+        updateSpeakerInputsState();
     </script>
 </body>
 </html>
