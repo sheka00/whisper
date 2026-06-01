@@ -184,6 +184,12 @@ async def transcribe(
                     print(f"Warning: Diarization failed: {e}")
                     yield json.dumps({"status": "processing", "stage": "diarize_failed", "message": f"Ошибка диаризации ({e}), продолжаем без нее..."}) + "\n"
                     
+            # Clean up VRAM after diarization/preprocessing
+            import gc
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
             # 3. Transcribe
             yield json.dumps({"status": "processing", "stage": "transcribe_init", "message": "Инициализация распознавания..."}) + "\n"
             try:
