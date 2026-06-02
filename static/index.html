@@ -880,13 +880,14 @@
     <div class="auth-container" id="auth-screen" style="display: none;">
         <div class="auth-card">
             <h2>Доступ к Whisper</h2>
-            <p>Введите пароль для авторизации на сервере</p>
+            <p>Введите имя пользователя и пароль для входа</p>
             <form id="auth-form" onsubmit="handleLogin(event)">
                 <div class="auth-input-wrapper">
+                    <input type="text" id="auth-username" class="auth-input" placeholder="Имя пользователя" autocomplete="username" required style="margin-bottom: 12px;">
                     <input type="password" id="auth-password" class="auth-input" placeholder="Пароль" autocomplete="current-password" required>
                 </div>
                 <button type="submit" class="auth-btn">Войти</button>
-                <div class="auth-error" id="auth-error-msg">Неверный пароль доступа</div>
+                <div class="auth-error" id="auth-error-msg">Неверное имя пользователя или пароль</div>
             </form>
         </div>
     </div>
@@ -1174,6 +1175,7 @@
 
             const xhr = new XMLHttpRequest();
             xhr.open('POST', '/api/transcribe', true);
+            xhr.setRequestHeader('X-Username', localStorage.getItem('whisper_username') || '');
             xhr.setRequestHeader('X-Password', localStorage.getItem('whisper_password') || '');
 
             // Track upload progress
@@ -1285,9 +1287,10 @@
                     } catch (e) {}
                     
                     if (xhr.status === 401) {
+                        localStorage.removeItem('whisper_username');
                         localStorage.removeItem('whisper_password');
                         showAuthScreen();
-                        alert('Сессия истекла или неверный пароль. Пожалуйста, авторизуйтесь заново.');
+                        alert('Сессия истекла или неверные учетные данные. Пожалуйста, авторизуйтесь заново.');
                         return;
                     }
                     
@@ -1414,6 +1417,7 @@
         function showAuthScreen() {
             document.getElementById('main-container').style.display = 'none';
             document.getElementById('auth-screen').style.display = 'flex';
+            document.getElementById('auth-username').value = '';
             document.getElementById('auth-password').value = '';
             document.getElementById('auth-error-msg').style.display = 'none';
         }
@@ -1426,20 +1430,22 @@
 
         window.handleLogin = function(event) {
             event.preventDefault();
+            const username = document.getElementById('auth-username').value;
             const password = document.getElementById('auth-password').value;
             const errorMsg = document.getElementById('auth-error-msg');
             
             errorMsg.style.display = 'none';
             
-            fetch('/api/verify-password', {
+            fetch('/api/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ password: password })
+                body: JSON.stringify({ username: username, password: password })
             })
             .then(response => {
                 if (response.ok) {
+                    localStorage.setItem('whisper_username', username);
                     localStorage.setItem('whisper_password', password);
                     showMainScreen();
                 } else {
@@ -1453,19 +1459,21 @@
         };
 
         // Auth Check on load
+        const storedUser = localStorage.getItem('whisper_username');
         const storedPass = localStorage.getItem('whisper_password');
-        if (storedPass) {
+        if (storedUser && storedPass) {
             showMainScreen();
             
-            fetch('/api/verify-password', {
+            fetch('/api/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ password: storedPass })
+                body: JSON.stringify({ username: storedUser, password: storedPass })
             })
             .then(response => {
                 if (!response.ok) {
+                    localStorage.removeItem('whisper_username');
                     localStorage.removeItem('whisper_password');
                     showAuthScreen();
                 }

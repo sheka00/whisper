@@ -27,6 +27,7 @@ from pathlib import Path
 
 # Global in-memory queue to serialize CUDA workloads
 active_tasks = []
+ACCESS_USERNAME = os.getenv("ACCESS_USERNAME", "adminmmvs")
 ACCESS_PASSWORD = os.getenv("ACCESS_PASSWORD", "adminmmvs")
 from contextlib import asynccontextmanager
 import json
@@ -133,10 +134,11 @@ async def transcribe(
     num_speakers: Optional[int] = Form(None),
     min_speakers: Optional[int] = Form(None),
     max_speakers: Optional[int] = Form(None),
+    x_username: Optional[str] = Header(None),
     x_password: Optional[str] = Header(None)
 ):
-    if x_password != ACCESS_PASSWORD:
-        raise HTTPException(status_code=401, detail="Неверный пароль доступа.")
+    if x_username != ACCESS_USERNAME or x_password != ACCESS_PASSWORD:
+        raise HTTPException(status_code=401, detail="Неверное имя пользователя или пароль.")
 
     if not asr:
         raise HTTPException(status_code=500, detail="Модель Whisper еще не загружена или произошла ошибка инициализации.")
@@ -311,12 +313,13 @@ async def transcribe(
 
     return StreamingResponse(event_generator(), media_type="application/x-ndjson")
 
-@app.post("/api/verify-password")
-async def verify_password(payload: dict):
+@app.post("/api/login")
+async def login(payload: dict):
+    username = payload.get("username")
     password = payload.get("password")
-    if password == ACCESS_PASSWORD:
+    if username == ACCESS_USERNAME and password == ACCESS_PASSWORD:
         return {"status": "ok"}
-    raise HTTPException(status_code=401, detail="Неверный пароль доступа.")
+    raise HTTPException(status_code=401, detail="Неверное имя пользователя или пароль.")
 
 @app.get("/")
 async def get_index():
