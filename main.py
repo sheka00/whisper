@@ -27,10 +27,11 @@ from pathlib import Path
 
 # Global in-memory queue to serialize CUDA workloads
 active_tasks = []
+ACCESS_PASSWORD = os.getenv("ACCESS_PASSWORD", "adminmmvs")
 from contextlib import asynccontextmanager
 import json
 from typing import Optional
-from fastapi import FastAPI, UploadFile, File, HTTPException, Form
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Header
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 import torch
@@ -131,8 +132,12 @@ async def transcribe(
     diarize: bool = Form(True),
     num_speakers: Optional[int] = Form(None),
     min_speakers: Optional[int] = Form(None),
-    max_speakers: Optional[int] = Form(None)
+    max_speakers: Optional[int] = Form(None),
+    x_password: Optional[str] = Header(None)
 ):
+    if x_password != ACCESS_PASSWORD:
+        raise HTTPException(status_code=401, detail="Неверный пароль доступа.")
+
     if not asr:
         raise HTTPException(status_code=500, detail="Модель Whisper еще не загружена или произошла ошибка инициализации.")
     
@@ -305,6 +310,13 @@ async def transcribe(
                 print(f"Task {task_id} removed from queue. Active tasks remaining: {len(active_tasks)}")
 
     return StreamingResponse(event_generator(), media_type="application/x-ndjson")
+
+@app.post("/api/verify-password")
+async def verify_password(payload: dict):
+    password = payload.get("password")
+    if password == ACCESS_PASSWORD:
+        return {"status": "ok"}
+    raise HTTPException(status_code=401, detail="Неверный пароль доступа.")
 
 @app.get("/")
 async def get_index():
