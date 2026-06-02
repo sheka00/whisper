@@ -29,6 +29,15 @@ from pathlib import Path
 active_tasks = []
 ACCESS_USERNAME = os.getenv("ACCESS_USERNAME", "adminmmvs")
 ACCESS_PASSWORD = os.getenv("ACCESS_PASSWORD", "adminmmvs")
+VALID_ACCOUNTS = {
+    ACCESS_USERNAME: ACCESS_PASSWORD
+}
+additional_accounts_str = os.getenv("ADDITIONAL_ACCOUNTS", "demo:demo")
+if additional_accounts_str:
+    for pair in additional_accounts_str.split(","):
+        if ":" in pair:
+            uname, passwd = pair.split(":", 1)
+            VALID_ACCOUNTS[uname.strip()] = passwd.strip()
 from contextlib import asynccontextmanager
 import json
 from typing import Optional
@@ -137,7 +146,7 @@ async def transcribe(
     x_username: Optional[str] = Header(None),
     x_password: Optional[str] = Header(None)
 ):
-    if x_username != ACCESS_USERNAME or x_password != ACCESS_PASSWORD:
+    if not x_username or not x_password or VALID_ACCOUNTS.get(x_username) != x_password:
         raise HTTPException(status_code=401, detail="Неверное имя пользователя или пароль.")
 
     if not asr:
@@ -317,7 +326,7 @@ async def transcribe(
 async def login(payload: dict):
     username = payload.get("username")
     password = payload.get("password")
-    if username == ACCESS_USERNAME and password == ACCESS_PASSWORD:
+    if username in VALID_ACCOUNTS and VALID_ACCOUNTS[username] == password:
         return {"status": "ok"}
     raise HTTPException(status_code=401, detail="Неверное имя пользователя или пароль.")
 
