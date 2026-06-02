@@ -22,7 +22,11 @@ except Exception as e:
 import uuid
 import shutil
 import time
+import asyncio
 from pathlib import Path
+
+# Global in-memory queue to serialize CUDA workloads
+active_tasks = []
 from contextlib import asynccontextmanager
 import json
 from typing import Optional
@@ -120,6 +124,7 @@ def preprocess_audio(input_path: Path) -> Path:
     return output_path
 
 
+
 @app.post("/api/transcribe")
 async def transcribe(
     file: UploadFile = File(...),
@@ -146,12 +151,30 @@ async def transcribe(
     async def event_generator():
         processing_start = time.time()
         processed_path = None
+        task_id = uuid.uuid4().hex
+        
+        active_tasks.append(task_id)
+        print(f"Task {task_id} registered. Current queue size: {len(active_tasks)}")
         
         try:
+            last_position = -1
+            while active_tasks[0] != task_id:
+                position = active_tasks.index(task_id)
+                if position != last_position:
+                    yield json.dumps({
+                        "status": "processing",
+                        "stage": "queue",
+                        "message": f"Очередь: вы {position}-й в очереди (ожидание освобождения GPU)..."
+                    }) + "\n"
+                    last_position = position
+                await asyncio.sleep(1)
+            
+            processing_start = time.time()
+            
             # 1. Preprocess file to 16kHz mono WAV (crucial for pyannote and Whisper)
             yield json.dumps({"status": "processing", "stage": "preprocess", "message": "Подготовка аудио (конвертация в 16кГц)..."}) + "\n"
             try:
-                processed_path = preprocess_audio(temp_file)
+                processed_path = await asyncio.to_thread(preprocess_audio, temp_file)
             except Exception as e:
                 print(f"Warning: Audio preprocessing failed: {e}. Falling back to original file.")
                 processed_path = temp_file
@@ -169,7 +192,7 @@ async def transcribe(
                     if max_speakers is not None:
                         diarize_kwargs["max_speakers"] = max_speakers
 
-                    diarization = diarization_pipeline(str(processed_path), **diarize_kwargs)
+                    diarization = await asyncio.to_thread(diarization_pipeline, str(processed_path), **diarize_kwargs)
                     # Handle pyannote.audio v3.x vs v4.x output structure
                     annotation = diarization.speaker_diarization if hasattr(diarization, "speaker_diarization") else diarization
                     
@@ -236,12 +259,14 @@ async def transcribe(
                     line_text = f"{timestamp_str} {segment.text.strip()}"
                     
                 text_segments.append(line_text)
-                # Yield current segment to show real-time progress
                 yield json.dumps({
                     "status": "processing",
                     "stage": "transcribe",
                     "message": f"Распознано: \"{segment.text.strip()}\""
                 }) + "\n"
+                
+                # yield control back to the event loop
+                await asyncio.sleep(0)
                 
             text = "\n\n".join(text_segments)
             
@@ -274,6 +299,10 @@ async def transcribe(
                 "stage": "error",
                 "message": f"Ошибка транскрибации: {str(e)}"
             }) + "\n"
+        finally:
+            if task_id in active_tasks:
+                active_tasks.remove(task_id)
+                print(f"Task {task_id} removed from queue. Active tasks remaining: {len(active_tasks)}")
 
     return StreamingResponse(event_generator(), media_type="application/x-ndjson")
 

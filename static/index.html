@@ -1100,7 +1100,17 @@
                             loadingSubtext.innerText = data.message;
                             
                             // Map backend stage to pipeline checkpoints
-                            if (data.stage === "preprocess") {
+                            if (data.stage === "queue") {
+                                updatePipeline('upload', 'completed');
+                                updatePipeline('preprocess', 'pending');
+                                if (diarize) {
+                                    updatePipeline('diarize', 'pending');
+                                } else {
+                                    updatePipeline('diarize', 'skipped');
+                                }
+                                updatePipeline('transcribe', 'pending');
+                                updatePipeline('done', 'pending');
+                            } else if (data.stage === "preprocess") {
                                 updatePipeline('upload', 'completed');
                                 updatePipeline('preprocess', 'active');
                             } else if (data.stage === "diarize") {
