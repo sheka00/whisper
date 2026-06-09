@@ -1,0 +1,1488 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whisper AI — Транскрибация видео и аудио</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎙️</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Plus+Jakarta+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #080710;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --primary: #8a2be2;
+            --primary-glow: rgba(138, 43, 226, 0.4);
+            --secondary: #00f2fe;
+            --secondary-glow: rgba(0, 242, 254, 0.4);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --accent: #ff007f;
+            --glass-blur: blur(20px);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Plus Jakarta Sans', 'Outfit', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Ambient background glow */
+        .ambient-bg {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            z-index: -1;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .glow-sphere-1 {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, var(--primary-glow) 0%, transparent 70%);
+            top: -200px;
+            left: -200px;
+            filter: blur(80px);
+            opacity: 0.6;
+            animation: float 20s ease-in-out infinite;
+        }
+
+        .glow-sphere-2 {
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, var(--secondary-glow) 0%, transparent 70%);
+            bottom: -150px;
+            right: -150px;
+            filter: blur(80px);
+            opacity: 0.5;
+            animation: float 15s ease-in-out infinite alternate;
+        }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(50px, 30px) scale(1.1); }
+            100% { transform: translate(0, 0) scale(1); }
+        }
+
+        /* Container & Glassmorphism */
+        .container {
+            width: 100%;
+            max-width: 760px;
+            padding: 24px;
+            z-index: 1;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #ffffff 30%, #a855f7 70%, #06b6d4 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.03em;
+            margin-bottom: 12px;
+        }
+
+        .header p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            font-weight: 400;
+        }
+
+        .glass-card {
+            background: var(--card-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .glass-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -50%;
+            width: 200%;
+            height: 100%;
+            background: linear-gradient(
+                to right,
+                transparent,
+                rgba(255, 255, 255, 0.03),
+                transparent
+            );
+            transform: skewX(-25deg);
+            transition: 0.75s;
+            pointer-events: none;
+        }
+
+        .glass-card:hover::before {
+            left: 125%;
+        }
+
+        /* Upload Area */
+        .upload-area {
+            border: 2px dashed rgba(255, 255, 255, 0.15);
+            border-radius: 18px;
+            padding: 48px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: rgba(255, 255, 255, 0.01);
+            position: relative;
+        }
+
+        .upload-area:hover, .upload-area.dragover {
+            border-color: var(--primary);
+            background: rgba(138, 43, 226, 0.03);
+            box-shadow: 0 0 25px rgba(138, 43, 226, 0.15);
+        }
+
+        .upload-icon {
+            font-size: 3.5rem;
+            margin-bottom: 20px;
+            display: inline-block;
+            transition: transform 0.3s ease;
+            filter: drop-shadow(0 0 10px rgba(138, 43, 226, 0.3));
+        }
+
+        .upload-area:hover .upload-icon {
+            transform: translateY(-5px) scale(1.05);
+        }
+
+        .upload-text-primary {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-main);
+        }
+
+        .upload-text-secondary {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        /* Progress & Loading State */
+        .loading-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px 0;
+        }
+
+        .spinner-box {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .circle-border-1 {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            padding: 3px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 50%;
+            background: linear-gradient(0deg, rgba(138, 43, 226, 0.1) 33%, rgba(138, 43, 226, 1) 100%);
+            animation: spin3D 1.5s linear infinite;
+        }
+
+        .circle-border-2 {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            padding: 3px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 50%;
+            background: linear-gradient(0deg, rgba(0, 242, 254, 0.1) 33%, rgba(0, 242, 254, 1) 100%);
+            animation: spin3D-reverse 2s linear infinite;
+        }
+
+        .circle-core {
+            width: 60px;
+            height: 60px;
+            background-color: var(--bg-color);
+            border-radius: 50%;
+        }
+
+        @keyframes spin3D {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes spin3D-reverse {
+            from { transform: rotate(360deg); }
+            to { transform: rotate(0deg); }
+        }
+
+        .loading-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            background: linear-gradient(90deg, #fff, var(--text-muted));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .loading-subtitle {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            text-align: center;
+            max-width: 400px;
+            line-height: 1.5;
+            min-height: 48px;
+        }
+
+        /* Result View */
+        .result-container {
+            display: none;
+            flex-direction: column;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .file-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .file-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: var(--text-main);
+            max-width: 400px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .processing-time {
+            font-size: 0.85rem;
+            color: var(--secondary);
+            font-weight: 500;
+        }
+
+        .text-area-wrapper {
+            position: relative;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            border: 1px solid var(--card-border);
+            margin-bottom: 24px;
+        }
+
+        .transcription-text {
+            width: 100%;
+            height: 300px;
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            padding: 20px;
+            font-size: 1rem;
+            line-height: 1.6;
+            resize: none;
+            outline: none;
+            overflow-y: auto;
+        }
+
+        /* Buttons and Interactive Elements */
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            flex: 1;
+            min-width: 140px;
+            padding: 14px 20px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            outline: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, #6d28d9 100%);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(138, 43, 226, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(138, 43, 226, 0.45);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+            border: 1px solid var(--card-border);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .btn-accent {
+            background: transparent;
+            color: var(--secondary);
+            border: 1px solid rgba(0, 242, 254, 0.3);
+        }
+
+        .btn-accent:hover {
+            background: rgba(0, 242, 254, 0.05);
+            border-color: var(--secondary);
+            transform: translateY(-2px);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        /* Copy feedback toast */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: rgba(138, 43, 226, 0.9);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            backdrop-filter: blur(10px);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 40px;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            text-align: center;
+        }
+
+        .footer a {
+            color: var(--secondary);
+            text-decoration: none;
+        }
+
+        /* Diarization Settings Styles */
+        .settings-container {
+            margin-top: 24px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 12px;
+            border: 1px solid var(--card-border);
+            text-align: left;
+        }
+
+        .settings-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            max-height: 200px;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .settings-grid.collapsed {
+            max-height: 0;
+            opacity: 0;
+            transform: translateY(-10px);
+            pointer-events: none;
+            margin-top: 0 !important;
+            gap: 0;
+        }
+
+        @media (max-width: 600px) {
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+            .settings-grid:not(.collapsed) {
+                max-height: 500px;
+            }
+        }
+
+        /* Slide-Toggle Switch Styles */
+        .toggle-wrapper {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .toggle-wrapper .settings-title {
+            margin-bottom: 0;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.08);
+            transition: .3s;
+            border: 1px solid var(--card-border);
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: var(--text-main);
+            transition: .3s;
+        }
+
+        input:checked + .slider {
+            background-color: var(--primary);
+            border-color: var(--primary);
+        }
+
+        input:focus + .slider {
+            box-shadow: 0 0 1px var(--primary);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        .slider.round {
+            border-radius: 24px;
+        }
+
+        .slider.round:before {
+            border-radius: 50%;
+        }
+
+        .settings-item {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: opacity 0.3s ease;
+        }
+
+        .settings-item label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .settings-item input {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 10px 12px;
+            color: var(--text-main);
+            font-size: 0.9rem;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .settings-item input:focus {
+            border-color: var(--secondary);
+            box-shadow: 0 0 8px rgba(0, 242, 254, 0.2);
+        }
+
+        /* Pipeline / Checkpoints Styles */
+        .pipeline-container {
+            width: 100%;
+            margin: 20px 0 35px 0;
+            padding: 10px 0;
+        }
+
+        .pipeline-steps {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            width: 100%;
+        }
+
+        .step-node {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 2;
+            flex: 1;
+            transition: all 0.3s ease;
+        }
+
+        .step-circle {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 2px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            box-shadow: 0 0 0 rgba(138, 43, 226, 0);
+        }
+
+        .step-icon {
+            transition: all 0.3s ease;
+        }
+
+        .step-check {
+            display: none;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #00f2fe;
+            text-shadow: 0 0 10px rgba(0, 242, 254, 0.5);
+        }
+
+        .step-label {
+            margin-top: 10px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-align: center;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .step-line {
+            height: 2px;
+            background: rgba(255, 255, 255, 0.08);
+            flex-grow: 1;
+            margin: 0 -10px;
+            position: relative;
+            top: -15px;
+            z-index: 1;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Statuses */
+        .step-node[data-status="pending"] {
+            opacity: 0.35;
+        }
+
+        .step-node[data-status="active"] {
+            opacity: 1;
+        }
+
+        .step-node[data-status="active"] .step-circle {
+            background: rgba(138, 43, 226, 0.12);
+            border-color: var(--primary);
+            box-shadow: 0 0 20px var(--primary-glow);
+            transform: scale(1.1);
+            animation: pulseGlow 1.5s infinite alternate;
+        }
+
+        .step-node[data-status="active"] .step-label {
+            color: var(--text-main);
+            font-weight: 700;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.25);
+        }
+
+        .step-node[data-status="completed"] {
+            opacity: 1;
+        }
+
+        .step-node[data-status="completed"] .step-circle {
+            background: rgba(0, 242, 254, 0.1);
+            border-color: var(--secondary);
+            box-shadow: 0 0 15px var(--secondary-glow);
+        }
+
+        .step-node[data-status="completed"] .step-icon {
+            display: none;
+        }
+
+        .step-node[data-status="completed"] .step-check {
+            display: block;
+        }
+
+        .step-node[data-status="completed"] .step-label {
+            color: var(--secondary);
+            font-weight: 600;
+        }
+
+        .step-node[data-status="skipped"] {
+            opacity: 0.25;
+        }
+
+        .step-node[data-status="skipped"] .step-label {
+            text-decoration: line-through;
+            color: var(--text-muted);
+        }
+
+        /* Lines */
+        .step-line[data-status="active"] {
+            background: linear-gradient(90deg, var(--secondary), var(--primary));
+            box-shadow: 0 0 8px var(--primary-glow);
+            opacity: 1;
+        }
+
+        .step-line[data-status="completed"] {
+            background: var(--secondary);
+            box-shadow: 0 0 8px var(--secondary-glow);
+            opacity: 1;
+        }
+
+        .step-line[data-status="skipped"] {
+            background: rgba(255, 255, 255, 0.04);
+            border-top: 1px dashed rgba(255, 255, 255, 0.15);
+        }
+
+        @keyframes pulseGlow {
+            0% {
+                box-shadow: 0 0 12px var(--primary-glow);
+                border-color: var(--primary);
+            }
+            100% {
+                box-shadow: 0 0 20px var(--secondary-glow);
+                border-color: var(--secondary);
+            }
+        }
+
+        @media (max-width: 650px) {
+            .pipeline-steps {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 20px;
+                padding-left: 20px;
+            }
+            .step-node {
+                flex-direction: row;
+                gap: 15px;
+                align-items: center;
+                width: 100%;
+                flex: none;
+            }
+            .step-circle {
+                width: 44px;
+                height: 44px;
+                font-size: 1.1rem;
+            }
+            .step-label {
+                margin-top: 0;
+                text-align: left;
+            }
+            .step-line {
+                width: 2px;
+                height: 20px;
+                margin: -10px 0 -10px 20px;
+                top: 0;
+                left: 0;
+                flex-grow: 0;
+            }
+        }
+
+        /* Authentication Styles */
+        .auth-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+            width: 100%;
+            box-sizing: border-box;
+            z-index: 10;
+            position: relative;
+        }
+
+        .auth-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(12px) saturate(180%);
+            -webkit-backdrop-filter: blur(12px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 40px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            text-align: center;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .auth-card h2 {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #ffffff 0%, rgba(255,255,255,0.7) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .auth-card p {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+
+        .auth-input-wrapper {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .auth-input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 14px 16px;
+            color: var(--text-main);
+            font-size: 15px;
+            outline: none;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+        }
+
+        .auth-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .auth-btn {
+            width: 100%;
+            background: var(--gradient-btn);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 14px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+        }
+
+        .auth-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+            filter: brightness(1.1);
+        }
+
+        .auth-btn:active {
+            transform: translateY(0);
+        }
+
+        .auth-error {
+            color: #ef4444;
+            font-size: 13px;
+            margin-top: 12px;
+            display: none;
+            min-height: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="ambient-bg">
+        <div class="glow-sphere-1"></div>
+        <div class="glow-sphere-2"></div>
+    </div>
+
+    <div class="auth-container" id="auth-screen" style="display: none;">
+        <div class="auth-card">
+            <h2>Доступ к Whisper</h2>
+            <p>Введите имя пользователя и пароль для входа</p>
+            <form id="auth-form" onsubmit="handleLogin(event)">
+                <div class="auth-input-wrapper">
+                    <input type="text" id="auth-username" class="auth-input" placeholder="Имя пользователя" autocomplete="username" required style="margin-bottom: 12px;">
+                    <input type="password" id="auth-password" class="auth-input" placeholder="Пароль" autocomplete="current-password" required>
+                </div>
+                <button type="submit" class="auth-btn">Войти</button>
+                <div class="auth-error" id="auth-error-msg">Неверное имя пользователя или пароль</div>
+            </form>
+        </div>
+    </div>
+
+    <div class="container" id="main-container" style="display: none;">
+        <div class="header">
+            <h1>Whisper AI</h1>
+            <p>Молниеносная транскрибация видео и аудио в текст</p>
+        </div>
+
+        <div class="glass-card" id="card">
+            <!-- Upload State -->
+            <div id="upload-state">
+                <div class="upload-area" id="drop-zone">
+                    <span class="upload-icon">⚡</span>
+                    <p class="upload-text-primary">Перетащите файл сюда или нажмите для выбора</p>
+                    <p class="upload-text-secondary">Поддерживаются видео (MP4, MKV, WEBM, MOV, TS, VOB и др.) и аудио (MP3, WAV, M4A, AAC, OPUS, AMR, WMA и др.)</p>
+                    <input type="file" id="file-input" accept="video/*,audio/*">
+                </div>
+
+                <!-- Diarization Settings Container -->
+                <div class="settings-container">
+                    <div class="toggle-wrapper" style="margin-bottom: 16px;">
+                        <div class="settings-title" style="margin-bottom: 0;">👥 Разделение по ролям (диаризация)</div>
+                        <label class="switch">
+                            <input type="checkbox" id="diarize-toggle" checked>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                    <div class="settings-grid" id="settings-grid">
+                        <div class="settings-item">
+                            <label for="num-speakers">Количество спикеров</label>
+                            <input type="number" id="num-speakers" min="1" max="20" placeholder="Автоопределение">
+                        </div>
+                        <div class="settings-item">
+                            <label for="min-speakers">Минимум спикеров</label>
+                            <input type="number" id="min-speakers" min="1" max="20" placeholder="2">
+                        </div>
+                        <div class="settings-item">
+                            <label for="max-speakers">Максимум спикеров</label>
+                            <input type="number" id="max-speakers" min="1" max="20" placeholder="10">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div class="loading-container" id="loading-state">
+                <!-- Checkpoints Pipeline -->
+                <div class="pipeline-container">
+                    <div class="pipeline-steps">
+                        <div class="step-node" id="step-upload" data-status="pending">
+                            <div class="step-circle">
+                                <span class="step-icon">📤</span>
+                                <span class="step-check">✓</span>
+                            </div>
+                            <div class="step-label" id="label-upload">Загрузка</div>
+                        </div>
+                        
+                        <div class="step-line" id="line-upload-preprocess" data-status="pending"></div>
+                        
+                        <div class="step-node" id="step-preprocess" data-status="pending">
+                            <div class="step-circle">
+                                <span class="step-icon">⚙️</span>
+                                <span class="step-check">✓</span>
+                            </div>
+                            <div class="step-label" id="label-preprocess">Конвертация</div>
+                        </div>
+                        
+                        <div class="step-line" id="line-preprocess-diarize" data-status="pending"></div>
+                        
+                        <div class="step-node" id="step-diarize" data-status="pending">
+                            <div class="step-circle">
+                                <span class="step-icon">👥</span>
+                                <span class="step-check">✓</span>
+                            </div>
+                            <div class="step-label" id="label-diarize">Диаризация</div>
+                        </div>
+                        
+                        <div class="step-line" id="line-diarize-transcribe" data-status="pending"></div>
+                        
+                        <div class="step-node" id="step-transcribe" data-status="pending">
+                            <div class="step-circle">
+                                <span class="step-icon">🎙️</span>
+                                <span class="step-check">✓</span>
+                            </div>
+                            <div class="step-label" id="label-transcribe">Распознавание</div>
+                        </div>
+                        
+                        <div class="step-line" id="line-transcribe-done" data-status="pending"></div>
+                        
+                        <div class="step-node" id="step-done" data-status="pending">
+                            <div class="step-circle">
+                                <span class="step-icon">✨</span>
+                                <span class="step-check">✓</span>
+                            </div>
+                            <div class="step-label" id="label-done">Готово</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="loading-subtitle" id="loading-subtext" style="margin-top: 20px; font-weight: 500; font-size: 1rem; color: var(--text-main);">Загрузка файла на сервер...</div>
+                
+                <div class="progress-bar-container" id="progress-container" style="display: none; width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; margin-top: 20px; overflow: hidden;">
+                    <div class="progress-bar-fill" id="progress-fill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); transition: width 0.1s ease; border-radius: 3px;"></div>
+                </div>
+            </div>
+
+            <!-- Result State -->
+            <div class="result-container" id="result-state">
+                <div class="result-header">
+                    <div class="file-info">
+                        <span class="file-name" id="result-filename">filename.mp4</span>
+                        <span class="processing-time" id="result-time">Время обработки: 14.2 сек</span>
+                    </div>
+                </div>
+                <div class="text-area-wrapper">
+                    <textarea class="transcription-text" id="transcription-content" readonly></textarea>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-secondary" id="btn-copy">
+                        <span>📋</span> Копировать
+                    </button>
+                    <button class="btn btn-accent" id="btn-download">
+                        <span>💾</span> Скачать TXT
+                    </button>
+                    <button class="btn btn-primary" id="btn-reset">
+                        <span>🔄</span> Новый файл
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            Whisper AI MVP &bull; Powered by OpenAI Whisper Large v3 Turbo & FastAPI
+        </div>
+    </div>
+
+    <div class="toast" id="toast">Текст скопирован в буфер обмена!</div>
+
+    <script>
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const uploadState = document.getElementById('upload-state');
+        const loadingState = document.getElementById('loading-state');
+        const resultState = document.getElementById('result-state');
+        const loadingSubtext = document.getElementById('loading-subtext');
+        const card = document.getElementById('card');
+        
+        const resultFilename = document.getElementById('result-filename');
+        const resultTime = document.getElementById('result-time');
+        const transcriptionContent = document.getElementById('transcription-content');
+        
+        const btnCopy = document.getElementById('btn-copy');
+        const btnDownload = document.getElementById('btn-download');
+        const btnReset = document.getElementById('btn-reset');
+        const toast = document.getElementById('toast');
+
+        let currentResult = {
+            text: '',
+            filename: ''
+        };
+
+        // Checkpoints / Pipeline UI Logic
+        function updatePipeline(step, status) {
+            const el = document.getElementById(`step-${step}`);
+            if (el) {
+                el.setAttribute('data-status', status);
+            }
+            updateLines();
+        }
+
+        function updateLines() {
+            const getStatus = (stepId) => {
+                const el = document.getElementById(`step-${stepId}`);
+                return el ? el.getAttribute('data-status') : 'pending';
+            };
+            
+            const lines = [
+                { id: 'line-upload-preprocess', from: 'upload', to: 'preprocess' },
+                { id: 'line-preprocess-diarize', from: 'preprocess', to: 'diarize' },
+                { id: 'line-diarize-transcribe', from: 'diarize', to: 'transcribe' },
+                { id: 'line-transcribe-done', from: 'transcribe', to: 'done' }
+            ];
+            
+            lines.forEach(line => {
+                const lineEl = document.getElementById(line.id);
+                if (!lineEl) return;
+                
+                const fromStatus = getStatus(line.from);
+                const toStatus = getStatus(line.to);
+                
+                if (fromStatus === 'skipped' || toStatus === 'skipped') {
+                    lineEl.setAttribute('data-status', 'skipped');
+                } else if (fromStatus === 'completed' && toStatus === 'completed') {
+                    lineEl.setAttribute('data-status', 'completed');
+                } else if (fromStatus === 'completed' && toStatus === 'active') {
+                    lineEl.setAttribute('data-status', 'active');
+                } else {
+                    lineEl.setAttribute('data-status', 'pending');
+                }
+            });
+        }
+
+        function resetPipeline(diarizeEnabled) {
+            const steps = ['upload', 'preprocess', 'diarize', 'transcribe', 'done'];
+            steps.forEach(step => {
+                const el = document.getElementById(`step-${step}`);
+                if (el) {
+                    if (step === 'diarize' && !diarizeEnabled) {
+                        el.setAttribute('data-status', 'skipped');
+                        document.getElementById('label-diarize').innerText = 'Диаризация (Пропущена)';
+                    } else {
+                        el.setAttribute('data-status', 'pending');
+                        if (step === 'diarize') {
+                            document.getElementById('label-diarize').innerText = 'Диаризация';
+                        }
+                    }
+                }
+            });
+            
+            document.getElementById('label-upload').innerText = 'Загрузка';
+            updateLines();
+        }
+
+        // Drag and Drop handlers
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                dropZone.classList.remove('dragover');
+            });
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            if (e.dataTransfer.files.length) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const diarize = document.getElementById('diarize-toggle').checked;
+            formData.append('diarize', diarize);
+
+            if (diarize) {
+                const numSpeakers = document.getElementById('num-speakers').value;
+                const minSpeakers = document.getElementById('min-speakers').value;
+                const maxSpeakers = document.getElementById('max-speakers').value;
+
+                if (numSpeakers) formData.append('num_speakers', numSpeakers);
+                if (minSpeakers) formData.append('min_speakers', minSpeakers);
+                if (maxSpeakers) formData.append('max_speakers', maxSpeakers);
+            }
+
+            // UI Transitions
+            uploadState.style.display = 'none';
+            loadingState.style.display = 'flex';
+            
+            const progressContainer = document.getElementById('progress-container');
+            const progressFill = document.getElementById('progress-fill');
+            
+            // Reset and show progress bar
+            progressContainer.style.display = 'block';
+            progressFill.style.width = '0%';
+            loadingSubtext.innerText = "Подготовка к загрузке...";
+            
+            // Initialize pipeline
+            resetPipeline(diarize);
+            updatePipeline('upload', 'active');
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/transcribe', true);
+            xhr.setRequestHeader('X-Username', localStorage.getItem('whisper_username') || '');
+            xhr.setRequestHeader('X-Password', localStorage.getItem('whisper_password') || '');
+
+            // Track upload progress
+            xhr.upload.onprogress = function(e) {
+                if (e.lengthComputable) {
+                    const percentComplete = Math.round((e.loaded / e.total) * 100);
+                    progressFill.style.width = percentComplete + '%';
+                    document.getElementById('label-upload').innerText = `Загрузка (${percentComplete}%)`;
+                    loadingSubtext.innerText = `Загрузка файла: ${percentComplete}%`;
+                    
+                    if (percentComplete >= 100) {
+                        document.getElementById('label-upload').innerText = `Загрузка`;
+                        updatePipeline('upload', 'completed');
+                        updatePipeline('preprocess', 'active');
+                        loadingSubtext.innerText = "Файл успешно загружен. Начинается конвертация...";
+                    }
+                }
+            };
+
+            let lastResponseLength = 0;
+            let buffer = "";
+
+            // Read response stream as it arrives
+            xhr.onprogress = function() {
+                const currentResponse = xhr.responseText;
+                const newChunk = currentResponse.substring(lastResponseLength);
+                lastResponseLength = currentResponse.length;
+
+                buffer += newChunk;
+                const lines = buffer.split("\n");
+                buffer = lines.pop(); // Keep partial line in buffer
+
+                for (const line of lines) {
+                    if (line.trim() === "") continue;
+                    try {
+                        const data = JSON.parse(line);
+                        if (data.status === "processing") {
+                            // Hide progress bar once server-side processing has started
+                            progressContainer.style.display = 'none';
+                            loadingSubtext.innerText = data.message;
+                            
+                            // Map backend stage to pipeline checkpoints
+                            if (data.stage === "queue") {
+                                updatePipeline('upload', 'completed');
+                                updatePipeline('preprocess', 'pending');
+                                if (diarize) {
+                                    updatePipeline('diarize', 'pending');
+                                } else {
+                                    updatePipeline('diarize', 'skipped');
+                                }
+                                updatePipeline('transcribe', 'pending');
+                                updatePipeline('done', 'pending');
+                            } else if (data.stage === "preprocess") {
+                                updatePipeline('upload', 'completed');
+                                updatePipeline('preprocess', 'active');
+                            } else if (data.stage === "diarize") {
+                                updatePipeline('upload', 'completed');
+                                updatePipeline('preprocess', 'completed');
+                                updatePipeline('diarize', 'active');
+                            } else if (data.stage === "diarize_failed") {
+                                updatePipeline('diarize', 'skipped');
+                                document.getElementById('label-diarize').innerText = 'Диаризация (Сбой)';
+                            } else if (data.stage === "transcribe_init") {
+                                updatePipeline('upload', 'completed');
+                                updatePipeline('preprocess', 'completed');
+                                if (diarize) {
+                                    updatePipeline('diarize', 'completed');
+                                } else {
+                                    updatePipeline('diarize', 'skipped');
+                                }
+                                updatePipeline('transcribe', 'active');
+                            } else if (data.stage === "transcribe") {
+                                updatePipeline('upload', 'completed');
+                                updatePipeline('preprocess', 'completed');
+                                if (diarize) {
+                                    updatePipeline('diarize', 'completed');
+                                } else {
+                                    updatePipeline('diarize', 'skipped');
+                                }
+                                updatePipeline('transcribe', 'active');
+                            }
+                        } else if (data.status === "completed") {
+                            progressContainer.style.display = 'none';
+                            loadingState.style.display = 'none';
+                            resultState.style.display = 'flex';
+
+                            currentResult.text = data.text;
+                            currentResult.filename = data.filename;
+
+                            resultFilename.innerText = file.name;
+                            resultTime.innerText = `Время обработки: ${data.duration_seconds} сек`;
+                            transcriptionContent.value = data.text;
+                        } else if (data.status === "error") {
+                            alert('Ошибка: ' + data.message);
+                            resetUI();
+                        }
+                    } catch (e) {
+                        console.error("Ошибка парсинга строки стрима:", e, line);
+                    }
+                }
+            };
+
+            xhr.onload = function() {
+                if (xhr.status >= 400) {
+                    let errMsg = 'Произошла ошибка при транскрибации';
+                    try {
+                        const errJson = JSON.parse(xhr.responseText);
+                        errMsg = errJson.detail || errMsg;
+                    } catch (e) {}
+                    
+                    if (xhr.status === 401) {
+                        localStorage.removeItem('whisper_username');
+                        localStorage.removeItem('whisper_password');
+                        showAuthScreen();
+                        alert('Сессия истекла или неверные учетные данные. Пожалуйста, авторизуйтесь заново.');
+                        return;
+                    }
+                    
+                    alert('Ошибка: ' + errMsg);
+                    resetUI();
+                    return;
+                }
+                
+                // Process any leftover in the buffer
+                if (buffer.trim() !== "") {
+                    try {
+                        const data = JSON.parse(buffer);
+                        if (data.status === "completed") {
+                            progressContainer.style.display = 'none';
+                            loadingState.style.display = 'none';
+                            resultState.style.display = 'flex';
+
+                            currentResult.text = data.text;
+                            currentResult.filename = data.filename;
+
+                            resultFilename.innerText = file.name;
+                            resultTime.innerText = `Время обработки: ${data.duration_seconds} сек`;
+                            transcriptionContent.value = data.text;
+                        }
+                    } catch(e) {}
+                }
+            };
+
+            xhr.onerror = function() {
+                progressContainer.style.display = 'none';
+                alert('Произошла сетевая ошибка при загрузке файла.');
+                resetUI();
+            };
+
+            xhr.send(formData);
+        }
+
+        function resetUI() {
+            fileInput.value = '';
+            uploadState.style.display = 'block';
+            loadingState.style.display = 'none';
+            resultState.style.display = 'none';
+            document.getElementById('progress-container').style.display = 'none';
+        }
+
+        btnReset.addEventListener('click', resetUI);
+
+        // Copy functionality
+        btnCopy.addEventListener('click', () => {
+            transcriptionContent.select();
+            navigator.clipboard.writeText(transcriptionContent.value)
+                .then(() => {
+                    toast.classList.add('show');
+                    setTimeout(() => {
+                        toast.classList.remove('show');
+                    }, 2500);
+                })
+                .catch(err => {
+                    console.error('Не удалось скопировать: ', err);
+                });
+        });
+
+        // Download functionality
+        btnDownload.addEventListener('click', () => {
+            const element = document.createElement('a');
+            const file = new Blob([transcriptionContent.value], {type: 'text/plain;charset=utf-8'});
+            element.href = URL.createObjectURL(file);
+            element.download = `${currentResult.filename}_транскрипция.txt`;
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        });
+
+        // Toggle diarization settings visibility
+        const diarizeToggle = document.getElementById('diarize-toggle');
+        const settingsGrid = document.getElementById('settings-grid');
+        
+        diarizeToggle.addEventListener('change', () => {
+            if (diarizeToggle.checked) {
+                settingsGrid.classList.remove('collapsed');
+            } else {
+                settingsGrid.classList.add('collapsed');
+            }
+        });
+
+        // Conditional validation for diarization speaker inputs
+        const numSpeakersInput = document.getElementById('num-speakers');
+        const minSpeakersInput = document.getElementById('min-speakers');
+        const maxSpeakersInput = document.getElementById('max-speakers');
+
+        function updateSpeakerInputsState() {
+            if (numSpeakersInput.value.trim() !== "") {
+                minSpeakersInput.disabled = true;
+                maxSpeakersInput.disabled = true;
+                minSpeakersInput.parentElement.style.opacity = "0.35";
+                maxSpeakersInput.parentElement.style.opacity = "0.35";
+            } else if (minSpeakersInput.value.trim() !== "" || maxSpeakersInput.value.trim() !== "") {
+                numSpeakersInput.disabled = true;
+                numSpeakersInput.parentElement.style.opacity = "0.35";
+                
+                minSpeakersInput.disabled = false;
+                maxSpeakersInput.disabled = false;
+                minSpeakersInput.parentElement.style.opacity = "1";
+                maxSpeakersInput.parentElement.style.opacity = "1";
+            } else {
+                numSpeakersInput.disabled = false;
+                minSpeakersInput.disabled = false;
+                maxSpeakersInput.disabled = false;
+                
+                numSpeakersInput.parentElement.style.opacity = "1";
+                minSpeakersInput.parentElement.style.opacity = "1";
+                maxSpeakersInput.parentElement.style.opacity = "1";
+            }
+        }
+
+        numSpeakersInput.addEventListener('input', updateSpeakerInputsState);
+        minSpeakersInput.addEventListener('input', updateSpeakerInputsState);
+        maxSpeakersInput.addEventListener('input', updateSpeakerInputsState);
+        
+        // Initial sync
+        updateSpeakerInputsState();
+
+        // Authentication UI Logic
+        function showAuthScreen() {
+            document.getElementById('main-container').style.display = 'none';
+            document.getElementById('auth-screen').style.display = 'flex';
+            document.getElementById('auth-username').value = '';
+            document.getElementById('auth-password').value = '';
+            document.getElementById('auth-error-msg').style.display = 'none';
+        }
+
+        function showMainScreen() {
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('main-container').style.display = 'block';
+            resetUI();
+        }
+
+        window.handleLogin = function(event) {
+            event.preventDefault();
+            const username = document.getElementById('auth-username').value;
+            const password = document.getElementById('auth-password').value;
+            const errorMsg = document.getElementById('auth-error-msg');
+            
+            errorMsg.style.display = 'none';
+            
+            fetch('/api/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username: username, password: password })
+            })
+            .then(response => {
+                if (response.ok) {
+                    localStorage.setItem('whisper_username', username);
+                    localStorage.setItem('whisper_password', password);
+                    showMainScreen();
+                } else {
+                    errorMsg.style.display = 'block';
+                }
+            })
+            .catch(err => {
+                errorMsg.innerText = 'Ошибка подключения к серверу';
+                errorMsg.style.display = 'block';
+            });
+        };
+
+        // Auth Check on load
+        const storedUser = localStorage.getItem('whisper_username');
+        const storedPass = localStorage.getItem('whisper_password');
+        if (storedUser && storedPass) {
+            showMainScreen();
+            
+            fetch('/api/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username: storedUser, password: storedPass })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    localStorage.removeItem('whisper_username');
+                    localStorage.removeItem('whisper_password');
+                    showAuthScreen();
+                }
+            })
+            .catch(() => {});
+        } else {
+            showAuthScreen();
+        }
+    </script>
+</body>
+</html>

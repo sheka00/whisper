@@ -330,6 +330,63 @@ async def login(payload: dict):
         return {"status": "ok"}
     raise HTTPException(status_code=401, detail="Неверное имя пользователя или пароль.")
 
+LEADS_FILE = Path("./uploads/leads.json")
+
+@app.post("/api/request-demo")
+async def request_demo(payload: dict):
+    name = payload.get("name")
+    company = payload.get("company")
+    email = payload.get("email")
+    phone = payload.get("phone")
+    message = payload.get("message", "")
+    
+    if not name or not company or not email or not phone:
+        raise HTTPException(status_code=400, detail="Все обязательные поля (имя, компания, email, телефон) должны быть заполнены.")
+        
+    lead_entry = {
+        "id": str(uuid.uuid4()),
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "name": name,
+        "company": company,
+        "email": email,
+        "phone": phone,
+        "message": message
+    }
+    
+    leads_list = []
+    if LEADS_FILE.exists():
+        try:
+            with open(LEADS_FILE, "r", encoding="utf-8") as f:
+                content = f.read().strip()
+                if content:
+                    leads_list = json.loads(content)
+        except Exception as e:
+            print(f"Error reading leads file: {e}")
+            
+    leads_list.append(lead_entry)
+    
+    try:
+        with open(LEADS_FILE, "w", encoding="utf-8") as f:
+            json.dump(leads_list, f, ensure_ascii=False, indent=4)
+        print(f"New lead saved: {lead_entry}")
+    except Exception as e:
+        print(f"Error writing to leads file: {e}")
+        raise HTTPException(status_code=500, detail="Ошибка при сохранении заявки.")
+        
+    return {"status": "ok", "message": "Заявка успешно сохранена."}
+
 @app.get("/")
 async def get_index():
     return FileResponse("static/index.html")
+
+@app.get("/app")
+async def get_app():
+    return FileResponse("static/app.html")
+
+@app.get("/privacy")
+async def get_privacy():
+    return FileResponse("static/privacy.html")
+
+@app.get("/terms")
+async def get_terms():
+    return FileResponse("static/terms.html")

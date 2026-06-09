@@ -3,1485 +3,1832 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Whisper AI — Транскрибация видео и аудио</title>
+    <meta name="description" content="Безопасная on-premise (локальная) система транскрибации аудио и видео в текст. Работает полностью локально без интернета. Идеально для корпоративного использования и защиты коммерческой тайны.">
+    <title>Локальная система транскрибации | Абсолютная безопасность</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎙️</text></svg>">
+    <!-- Modern corporate font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Plus+Jakarta+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #080710;
-            --card-bg: rgba(255, 255, 255, 0.03);
-            --card-border: rgba(255, 255, 255, 0.08);
-            --primary: #8a2be2;
-            --primary-glow: rgba(138, 43, 226, 0.4);
-            --secondary: #00f2fe;
-            --secondary-glow: rgba(0, 242, 254, 0.4);
-            --text-main: #f3f4f6;
+            --bg-color: #0b0f19;
+            --surface: #111827;
+            --surface-hover: #1f2937;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --text-main: #f9fafb;
             --text-muted: #9ca3af;
-            --accent: #ff007f;
-            --glass-blur: blur(20px);
+            --border: #374151;
+            --accent: #60a5fa;
+            --glow: rgba(59, 130, 246, 0.15);
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Plus Jakarta Sans', 'Outfit', sans-serif;
-            -webkit-font-smoothing: antialiased;
-        }
-
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            overflow-x: hidden;
-            position: relative;
-        }
-
-        /* Ambient background glow */
-        .ambient-bg {
-            position: absolute;
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        html, body { 
+            background-color: var(--bg-color); 
+            color: var(--text-main); 
+            line-height: 1.6; 
+            overflow-x: hidden; 
             width: 100%;
-            height: 100%;
-            top: 0;
-            left: 0;
-            z-index: -1;
-            overflow: hidden;
-            pointer-events: none;
+            max-width: 100%;
+            position: relative;
+            overflow-wrap: break-word;
+        }
+        
+        a { text-decoration: none; color: inherit; }
+        ul { list-style: none; }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+        /* Animation utilities */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .animate-fade-in {
+            animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
         }
 
-        .glow-sphere-1 {
-            position: absolute;
-            width: 600px;
-            height: 600px;
-            background: radial-gradient(circle, var(--primary-glow) 0%, transparent 70%);
-            top: -200px;
-            left: -200px;
-            filter: blur(80px);
-            opacity: 0.6;
-            animation: float 20s ease-in-out infinite;
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.2s; }
+        .delay-3 { animation-delay: 0.3s; }
+
+        /* Header */
+        header { 
+            border-bottom: 1px solid transparent; 
+            background: rgba(11, 15, 25, 0.0); 
+            backdrop-filter: blur(0px); 
+            -webkit-backdrop-filter: blur(0px);
+            position: sticky; 
+            top: 0; 
+            z-index: 100; 
+            transition: all 0.3s ease;
+        }
+        header.scrolled {
+            border-bottom: 1px solid var(--border); 
+            background: rgba(11, 15, 25, 0.85); 
+            backdrop-filter: blur(16px); 
+            -webkit-backdrop-filter: blur(16px);
+        }
+        .nav-container { display: flex; justify-content: space-between; align-items: center; height: 80px; }
+        .logo { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; display: flex; align-items: center; gap: 10px;}
+        .logo span { background: linear-gradient(90deg, #fff, var(--text-muted)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+        .logo-icon { color: var(--primary); }
+        
+        .btn { display: inline-flex; align-items: center; justify-content: center; padding: 14px 28px; border-radius: 8px; font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: all 0.3s ease; text-align: center; }
+        .btn-primary { background: var(--primary); color: #fff; border: 1px solid var(--primary); box-shadow: 0 4px 14px var(--glow); }
+        .btn-primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(59, 130, 246, 0.25); }
+        .btn-outline { background: transparent; color: var(--text-main); border: 1px solid var(--border); }
+        .btn-outline:hover { background: var(--surface); border-color: var(--text-muted); transform: translateY(-2px); }
+
+        /* Hero Section */
+        .hero { padding: 80px 0 60px; text-align: center; position: relative; }
+        .hero::before { 
+            content: ""; position: absolute; width: 800px; height: 800px; 
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.12) 0%, transparent 60%); 
+            top: -300px; left: 50%; transform: translateX(-50%); z-index: -1; pointer-events: none; 
+        }
+        .hero-badge { 
+            display: inline-block; padding: 6px 16px; border-radius: 20px; 
+            background: rgba(59, 130, 246, 0.1); color: var(--accent); 
+            font-size: 0.85rem; font-weight: 600; margin-bottom: 24px; border: 1px solid rgba(59, 130, 246, 0.2);
+            letter-spacing: 0.05em; text-transform: uppercase;
+        }
+        .hero h1 { font-size: 3.8rem; font-weight: 800; line-height: 1.15; margin-bottom: 24px; letter-spacing: -0.03em; max-width: 950px; margin-left: auto; margin-right: auto; }
+        .hero p { font-size: 1.25rem; color: var(--text-muted); margin-bottom: 48px; max-width: 700px; margin-left: auto; margin-right: auto; }
+        .hero-actions { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+
+        /* Features */
+        .section { padding: 80px 0; }
+        .section-title { font-size: 2.5rem; font-weight: 800; text-align: center; margin-bottom: 64px; letter-spacing: -0.02em; }
+        
+        .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; }
+        .card { 
+            background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 36px; 
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); position: relative; overflow: hidden;
+        }
+        .card::after {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary), transparent);
+            opacity: 0; transition: opacity 0.4s ease;
+        }
+        .card:hover { transform: translateY(-8px); border-color: rgba(59, 130, 246, 0.3); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4); }
+        .card:hover::after { opacity: 1; }
+        .card h3 { font-size: 1.25rem; margin-bottom: 12px; font-weight: 600; color: #fff; }
+        .card p { color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; }
+        .icon { 
+            width: 48px; height: 48px; background: rgba(59, 130, 246, 0.1); border-radius: 12px; 
+            display: flex; align-items: center; justify-content: center; color: var(--primary); 
+            margin-bottom: 24px; border: 1px solid rgba(59, 130, 246, 0.2);
+            transition: transform 0.3s ease;
+        }
+        .card:hover .icon { transform: scale(1.1); background: rgba(59, 130, 246, 0.2); }
+
+        /* How it works */
+        .steps-container { position: relative; width: 100%; max-width: 1000px; margin: 0 auto; }
+        .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; position: relative; z-index: 1; }
+        .steps::before {
+            content: ''; position: absolute; top: 48px; left: 15%; right: 15%; height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.4), transparent); z-index: -1;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+        }
+        .step { 
+            display: flex; flex-direction: column; align-items: center; text-align: center;
+            background: var(--surface); padding: 40px 24px 32px; 
+            border-radius: 16px; border: 1px solid var(--border);
+            transition: transform 0.3s ease, border-color 0.3s ease; position: relative;
+        }
+        .step:hover { transform: translateY(-5px); border-color: rgba(59, 130, 246, 0.5); box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+        .step-icon-wrap {
+            width: 72px; height: 72px; border-radius: 50%; background: var(--bg-color);
+            border: 2px solid var(--border); display: flex; align-items: center; justify-content: center;
+            margin-bottom: 24px; color: var(--primary); position: relative;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+        }
+        .step:hover .step-icon-wrap { border-color: var(--primary); box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); transform: scale(1.05); }
+        .step-num { position: absolute; top: -10px; right: -10px; background: var(--primary); color: #fff; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4); }
+        .step-content h3 { font-size: 1.25rem; margin-bottom: 12px; font-weight: 600; color: #fff;}
+        .step-content p { color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; }
+        .steps-footer { text-align: center; margin-top: 40px; color: var(--text-muted); font-size: 0.95rem; font-style: italic; }
+        
+        @media (max-width: 768px) {
+            .steps { grid-template-columns: 1fr; }
+            .steps::before { display: none; }
         }
 
-        .glow-sphere-2 {
-            position: absolute;
-            width: 500px;
-            height: 500px;
-            background: radial-gradient(circle, var(--secondary-glow) 0%, transparent 70%);
-            bottom: -150px;
-            right: -150px;
-            filter: blur(80px);
-            opacity: 0.5;
-            animation: float 15s ease-in-out infinite alternate;
+        /* Pipeline */
+        .pipeline-wrap { display: flex; flex-direction: column; align-items: center; gap: 32px; }
+        .pipeline { display: flex; align-items: center; justify-content: center; gap: 0; flex-wrap: wrap; gap: 8px; }
+        .pl-node { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 16px; padding: 32px 28px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; min-width: 200px; transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease; }
+        .pl-node:hover { transform: translateY(-6px); border-color: rgba(59,130,246,0.4); box-shadow: 0 12px 30px rgba(0,0,0,0.4); }
+        .pl-node--active { border-color: rgba(59,130,246,0.4); box-shadow: 0 0 30px rgba(59,130,246,0.15); }
+        .pl-icon { width: 80px; height: 80px; border-radius: 50%; background: var(--bg-color); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--primary); position: relative; }
+        .pl-icon--active { border-color: var(--primary); box-shadow: 0 0 20px rgba(59,130,246,0.3); }
+        .pl-pulse { position: absolute; inset: -4px; border-radius: 50%; border: 2px solid rgba(59,130,246,0.4); animation: pulse-ring 2s ease-out infinite; }
+        @keyframes pulse-ring { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(1.4); opacity: 0; } }
+        .pl-label { font-size: 1.05rem; font-weight: 700; color: #fff; }
+        .pl-sub { font-size: 0.85rem; color: var(--text-muted); }
+        .pl-arrow { display: flex; align-items: center; gap: 4px; color: rgba(59,130,246,0.5); padding: 0 4px; }
+        .pl-dot { width: 5px; height: 5px; border-radius: 50%; background: rgba(59,130,246,0.4); animation: dot-flow 1.5s ease-in-out infinite; }
+        .pl-dot:nth-child(2) { animation-delay: 0.3s; }
+        .pl-dot:nth-child(3) { animation-delay: 0.6s; }
+        @keyframes dot-flow { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
+        .pipeline-badge { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2); border-radius: 30px; color: var(--accent); font-size: 0.9rem; font-weight: 600; }
+        @media (max-width: 768px) { 
+            .pipeline { flex-direction: column; gap: 8px; } 
+            .pl-arrow { flex-direction: column; padding: 12px 0; }
+            .pl-arrow svg { transform: rotate(90deg); }
         }
-
-        @keyframes float {
-            0% { transform: translate(0, 0) scale(1); }
-            50% { transform: translate(50px, 30px) scale(1.1); }
-            100% { transform: translate(0, 0) scale(1); }
+        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; }
+        .pricing-card { 
+            background: var(--surface); border: 1px solid var(--border); border-radius: 20px; 
+            padding: 48px 40px; display: flex; flex-direction: column; position: relative;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
+        .pricing-card:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
+        .pricing-card h3 { font-size: 1.5rem; margin-bottom: 12px; font-weight: 700; color: #fff; }
+        .pricing-card .price { font-size: 3rem; font-weight: 800; margin-bottom: 32px; color: #fff; line-height: 1; white-space: nowrap; }
+        .pricing-card .price span { font-size: 1.1rem; font-weight: 500; color: var(--text-muted); white-space: nowrap; }
+        .pricing-features { margin-bottom: 40px; flex-grow: 1; }
+        .pricing-features li { margin-bottom: 16px; color: #cbd5e1; display: flex; align-items: center; gap: 12px; font-size: 0.95rem; }
+        .pricing-features li svg { width: 18px; height: 18px; color: var(--primary); flex-shrink: 0; }
+        .pricing-footer { text-align: center; margin-top: 40px; font-size: 0.9rem; color: var(--text-muted); max-width: 800px; margin-left: auto; margin-right: auto; line-height: 1.5;}
 
-        /* Container & Glassmorphism */
-        .container {
-            width: 100%;
-            max-width: 760px;
-            padding: 24px;
-            z-index: 1;
+        /* Target Audience / Cases */
+        .cases-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+        .case-card { 
+            background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 16px; padding: 32px; 
+            display: flex; flex-direction: column; transition: background 0.3s ease;
         }
+        .case-card:hover { background: rgba(255, 255, 255, 0.05); }
+        .case-card .industry { font-size: 0.8rem; text-transform: uppercase; color: var(--accent); font-weight: 700; margin-bottom: 12px; letter-spacing: 0.05em; }
+        .case-card h3 { font-size: 1.25rem; margin-bottom: 16px; color: #fff; }
+        .case-card p { color: var(--text-muted); font-size: 0.95rem; }
 
-        .header {
-            text-align: center;
-            margin-bottom: 40px;
+        /* FAQ */
+        .faq-container { max-width: 800px; margin: 0 auto; }
+        .faq-item { border-bottom: 1px solid var(--border); }
+        .faq-item:first-child { border-top: 1px solid var(--border); }
+        .faq-question { 
+            font-size: 1.1rem; font-weight: 600; padding: 24px 0; cursor: pointer; 
+            display: flex; justify-content: space-between; align-items: center; color: #fff;
+            transition: color 0.2s ease;
         }
-
-        .header h1 {
-            font-size: 3rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, #ffffff 30%, #a855f7 70%, #06b6d4 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            letter-spacing: -0.03em;
-            margin-bottom: 12px;
+        .faq-question:hover { color: var(--accent); }
+        .faq-question svg { transition: transform 0.3s cubic-bezier(0.165, 0.84, 0.44, 1); }
+        .faq-item.active .faq-question { color: var(--accent); }
+        .faq-item.active .faq-question svg { transform: rotate(180deg); }
+        .faq-answer { 
+            color: var(--text-muted); font-size: 1rem; line-height: 1.6; 
+            max-height: 0; overflow: hidden; opacity: 0; transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
         }
-
-        .header p {
-            color: var(--text-muted);
-            font-size: 1.1rem;
-            font-weight: 400;
+        .faq-item.active .faq-answer { max-height: 300px; padding-bottom: 24px; opacity: 1; }
+        
+        /* CTA */
+        .cta-section { 
+            text-align: center; background: radial-gradient(circle at center, var(--surface) 0%, var(--bg-color) 100%); 
+            padding: 80px 0; border-top: 1px solid var(--border); position: relative; overflow: hidden;
         }
+        .cta-section::before { 
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 1px; 
+            background: linear-gradient(90deg, transparent, var(--primary), transparent); opacity: 0.5;
+        }
+        .cta-section h2 { font-size: 3rem; margin-bottom: 20px; font-weight: 800; letter-spacing: -0.02em; }
+        .cta-section p { font-size: 1.25rem; color: var(--text-muted); margin-bottom: 48px; max-width: 600px; margin-left: auto; margin-right: auto; }
 
-        .glass-card {
-            background: var(--card-bg);
-            backdrop-filter: var(--glass-blur);
-            -webkit-backdrop-filter: var(--glass-blur);
-            border: 1px solid var(--card-border);
-            border-radius: 24px;
-            padding: 40px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
-            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        /* Footer */
+        footer { border-top: 1px solid var(--border); padding: 60px 0 40px; background: #070a11; }
+        .footer-content { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 40px; margin-bottom: 40px; }
+        .footer-brand h4 { font-size: 1.25rem; font-weight: 700; color: #fff; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;}
+        .footer-brand p { color: var(--text-muted); font-size: 0.95rem; max-width: 300px; }
+        .footer-links-col { display: flex; flex-direction: column; gap: 12px; }
+        .footer-links-col h5 { color: #fff; font-size: 0.95rem; font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .footer-links-col a { color: var(--text-muted); font-size: 0.95rem; transition: color 0.2s ease; }
+        .footer-links-col a:hover { color: var(--accent); }
+        .footer-bottom { border-top: 1px solid rgba(255,255,255,0.05); padding-top: 24px; display: flex; justify-content: space-between; align-items: center; color: var(--text-muted); font-size: 0.85rem; }
+
+        /* Stats */
+        .stats-section { padding: 40px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0; }
+        .stat-item { text-align: center; padding: 32px 24px; border-right: 1px solid var(--border); }
+        .stat-item:last-child { border-right: none; }
+        .stat-number { font-size: 3rem; font-weight: 800; color: #fff; letter-spacing: -0.03em; line-height: 1; margin-bottom: 8px; }
+        .stat-number span { color: var(--primary); }
+        .stat-label { color: var(--text-muted); font-size: 0.95rem; line-height: 1.4; }
+
+        /* Ticker */
+        .ticker-section { padding: 20px 0; border-bottom: 1px solid var(--border); overflow: hidden; background: rgba(59, 130, 246, 0.03); }
+        .ticker-track { display: flex; gap: 0; animation: ticker 30s linear infinite; white-space: nowrap; }
+        .ticker-track:hover { animation-play-state: paused; }
+        @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        .ticker-item { display: inline-flex; align-items: center; gap: 8px; padding: 0 28px; color: var(--text-muted); font-size: 0.9rem; font-weight: 500; }
+        .ticker-item .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--primary); opacity: 0.6; }
+        .ticker-item strong { color: var(--text-main); }
+
+        /* Before/After Transformation Section Redesign */
+        .transform-section { 
+            background: radial-gradient(circle at top, rgba(13, 20, 35, 0.8) 0%, var(--bg-color) 100%);
+            border-top: 1px solid var(--border); 
+            border-bottom: 1px solid var(--border); 
             position: relative;
             overflow: hidden;
         }
-
-        .glass-card::before {
+        
+        .transform-section::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: -50%;
-            width: 200%;
-            height: 100%;
-            background: linear-gradient(
-                to right,
-                transparent,
-                rgba(255, 255, 255, 0.03),
-                transparent
-            );
-            transform: skewX(-25deg);
-            transition: 0.75s;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.05) 0%, transparent 70%);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             pointer-events: none;
         }
-
-        .glass-card:hover::before {
-            left: 125%;
+        
+        .transform-grid { 
+            display: grid; 
+            grid-template-columns: 1fr auto 1fr; 
+            gap: 40px; 
+            align-items: stretch; 
+            position: relative;
+            z-index: 2;
+            max-width: 960px; /* Makes the boxes narrower / taller */
+            margin: 0 auto;
         }
-
-        /* Upload Area */
-        .upload-area {
-            border: 2px dashed rgba(255, 255, 255, 0.15);
-            border-radius: 18px;
-            padding: 48px 24px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            background: rgba(255, 255, 255, 0.01);
+        
+        .transform-box { 
+            padding: 48px; 
+            border-radius: 24px; 
+            backdrop-filter: blur(12px);
+            transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* Centers the label horizontally */
+        }
+        
+        .transform-box.before { 
+            background: rgba(239, 68, 68, 0.15); 
+            border: 1px solid rgba(239, 68, 68, 0.3); 
+            box-shadow: 0 10px 40px rgba(239, 68, 68, 0.05);
+        }
+        
+        .transform-box.before:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.5);
+            box-shadow: 0 20px 50px rgba(239, 68, 68, 0.1);
+            transform: translateY(-4px);
+        }
+        
+        .transform-box.after { 
+            background: rgba(59, 130, 246, 0.15); 
+            border: 1px solid rgba(59, 130, 246, 0.3); 
+            box-shadow: 0 10px 40px rgba(59, 130, 246, 0.05);
+        }
+        
+        .transform-box.after:hover {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: rgba(59, 130, 246, 0.5);
+            box-shadow: 0 20px 50px rgba(59, 130, 246, 0.1);
+            transform: translateY(-4px);
+        }
+        
+        .transform-label { 
+            font-size: 1.2rem; /* Much larger */
+            text-transform: uppercase; 
+            font-weight: 800; 
+            letter-spacing: 0.15em; 
+            margin-bottom: 32px; 
+            display: inline-flex;
+            padding: 8px 24px;
+            border-radius: 30px;
+        }
+        
+        .before .transform-label { 
+            color: #f87171; 
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.15);
+        }
+        
+        .after .transform-label { 
+            color: var(--accent); 
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
+            animation: pulse-border 2.5s infinite alternate;
+        }
+        
+        @keyframes pulse-border {
+            0% { border-color: rgba(59, 130, 246, 0.2); }
+            100% { border-color: rgba(59, 130, 246, 0.5); box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
+        }
+        
+        .transform-item { 
+            display: flex; 
+            align-items: flex-start; 
+            gap: 16px; 
+            margin-bottom: 20px; 
+            color: var(--text-muted); 
+            font-size: 1rem; 
+            line-height: 1.6; 
+            transition: color 0.3s ease;
+            width: 100%;
+        }
+        
+        .transform-box.after .transform-item {
+            color: #e2e8f0;
+        }
+        
+        .transform-item:last-child { margin-bottom: 0; }
+        .transform-item svg { flex-shrink: 0; }
+        
+        /* Middle connection badge instead of simple arrow */
+        .transform-arrow-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
             position: relative;
         }
-
-        .upload-area:hover, .upload-area.dragover {
-            border-color: var(--primary);
-            background: rgba(138, 43, 226, 0.03);
-            box-shadow: 0 0 25px rgba(138, 43, 226, 0.15);
+        
+        .transform-badge-connector {
+            position: absolute;
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, rgba(239, 68, 68, 0.3), rgba(59, 130, 246, 0.3));
+            z-index: 1;
         }
-
-        .upload-icon {
-            font-size: 3.5rem;
-            margin-bottom: 20px;
-            display: inline-block;
-            transition: transform 0.3s ease;
-            filter: drop-shadow(0 0 10px rgba(138, 43, 226, 0.3));
-        }
-
-        .upload-area:hover .upload-icon {
-            transform: translateY(-5px) scale(1.05);
-        }
-
-        .upload-text-primary {
-            font-size: 1.2rem;
-            font-weight: 600;
-            margin-bottom: 8px;
+        
+        .transform-badge { 
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: #0f172a;
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
             color: var(--text-main);
+            font-weight: 700;
+            z-index: 2;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            position: relative;
+        }
+        
+        .transform-badge::before {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ef4444, #3b82f6);
+            z-index: -1;
+            opacity: 0.7;
         }
 
-        .upload-text-secondary {
-            font-size: 0.9rem;
-            color: var(--text-muted);
+        /* Orbital / Triangle Layout for Use Cases */
+        .orbital-layout {
+            position: relative;
+            max-width: 1100px;
+            margin: 60px auto;
+            display: grid;
+            grid-template-columns: 1fr 1.2fr 1fr;
+            align-items: center;
+            gap: 40px;
         }
-
-        #file-input {
-            display: none;
-        }
-
-        /* Progress & Loading State */
-        .loading-container {
-            display: none;
+        
+        .orbital-hub {
+            grid-column: 2;
+            grid-row: 1 / span 2;
+            display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 20px 0;
-        }
-
-        .spinner-box {
             position: relative;
+            z-index: 10;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, rgba(7, 10, 17, 0) 70%);
+            padding: 40px;
+            border-radius: 50%;
+        }
+        
+        .hub-icon {
             width: 100px;
             height: 100px;
+            border-radius: 50%;
+            background: var(--surface);
+            border: 2px solid var(--primary);
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.4), inset 0 0 15px rgba(59, 130, 246, 0.2);
             display: flex;
-            justify-content: center;
             align-items: center;
-            margin-bottom: 30px;
+            justify-content: center;
+            margin-bottom: 16px;
+            position: relative;
+            animation: pulse-glow 3s infinite ease-in-out;
         }
-
-        .circle-border-1 {
+        
+        .hub-pulse {
             position: absolute;
-            width: 100px;
-            height: 100px;
-            padding: 3px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            width: 116px;
+            height: 116px;
             border-radius: 50%;
-            background: linear-gradient(0deg, rgba(138, 43, 226, 0.1) 33%, rgba(138, 43, 226, 1) 100%);
-            animation: spin3D 1.5s linear infinite;
+            border: 2px dashed rgba(59, 130, 246, 0.2);
+            animation: rotate-dashed 20s linear infinite;
         }
-
-        .circle-border-2 {
+        
+        .hub-text {
+            color: #fff;
+            font-size: 1.1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            text-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+        }
+        
+        .satellite-cards {
+            display: contents;
+        }
+        
+        .satellite-card {
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 32px;
+            position: relative;
+            transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+        }
+        
+        .satellite-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            background: rgba(255, 255, 255, 0.03);
+            border-color: rgba(59, 130, 246, 0.5);
+            box-shadow: 0 20px 40px rgba(59, 130, 246, 0.1), 0 0 0 1px rgba(59, 130, 246, 0.2);
+        }
+        
+        .sat-1 {
+            grid-column: 1;
+            grid-row: 1;
+        }
+        
+        .sat-2 {
+            grid-column: 3;
+            grid-row: 1;
+        }
+        
+        .sat-3 {
+            grid-column: 2;
+            grid-row: 3;
+            margin-top: -20px;
+        }
+        
+        .sat-1::after, .sat-2::after, .sat-3::before {
+            content: '';
             position: absolute;
-            width: 80px;
-            height: 80px;
-            padding: 3px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            border-radius: 50%;
-            background: linear-gradient(0deg, rgba(0, 242, 254, 0.1) 33%, rgba(0, 242, 254, 1) 100%);
-            animation: spin3D-reverse 2s linear infinite;
+            background: linear-gradient(to right, rgba(59, 130, 246, 0.3), transparent);
+            height: 1px;
+            z-index: 1;
+            pointer-events: none;
         }
-
-        .circle-core {
-            width: 60px;
-            height: 60px;
-            background-color: var(--bg-color);
-            border-radius: 50%;
+        
+        .sat-1::after {
+            top: 50%;
+            left: 100%;
+            width: 40px;
         }
-
-        @keyframes spin3D {
+        
+        .sat-2::after {
+            top: 50%;
+            right: 100%;
+            width: 40px;
+            background: linear-gradient(to left, rgba(59, 130, 246, 0.3), transparent);
+        }
+        
+        .sat-3::before {
+            bottom: 100%;
+            left: 50%;
+            width: 1px;
+            height: 40px;
+            background: linear-gradient(to top, rgba(59, 130, 246, 0.3), transparent);
+        }
+        
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
+            50% { box-shadow: 0 0 40px rgba(59, 130, 246, 0.6); }
+        }
+        
+        @keyframes rotate-dashed {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
-
-        @keyframes spin3D-reverse {
-            from { transform: rotate(360deg); }
-            to { transform: rotate(0deg); }
+        
+        @media (max-width: 1024px) {
+            .transform-grid { grid-template-columns: 1fr; gap: 40px; }
+            .transform-arrow-wrap { height: 60px; }
+            .transform-badge-connector {
+                width: 1px;
+                height: 100%;
+                background: linear-gradient(180deg, rgba(239, 68, 68, 0.3), rgba(59, 130, 246, 0.3));
+            }
+            .transform-badge {
+                /* Removed rotate(90deg) so VS text stands upright */
+            }
+            .orbital-layout {
+                grid-template-columns: 1fr;
+                gap: 32px;
+                margin: 40px auto;
+            }
+            .orbital-hub {
+                grid-column: 1;
+                grid-row: auto;
+                padding: 20px;
+            }
+            .sat-1, .sat-2, .sat-3 {
+                grid-column: 1;
+                grid-row: auto;
+                margin-top: 0;
+            }
+            .sat-1::after, .sat-2::after, .sat-3::before {
+                display: none; /* Hide desktop horizontal connectors */
+            }
+            .satellite-card::before {
+                content: '';
+                display: block;
+                position: absolute;
+                bottom: 100%;
+                left: 50%;
+                width: 1px;
+                height: 32px;
+                background: linear-gradient(0deg, rgba(59, 130, 246, 0.4), transparent);
+                z-index: 0;
+            }
         }
 
-        .loading-title {
-            font-size: 1.3rem;
-            font-weight: 600;
-            margin-bottom: 12px;
-            background: linear-gradient(90deg, #fff, var(--text-muted));
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .loading-subtitle {
-            font-size: 0.95rem;
-            color: var(--text-muted);
-            text-align: center;
-            max-width: 400px;
-            line-height: 1.5;
-            min-height: 48px;
-        }
-
-        /* Result View */
-        .result-container {
-            display: none;
+        /* Case details structured layout */
+        .case-details {
+            margin-top: 18px;
+            display: flex;
             flex-direction: column;
+            gap: 12px;
+        }
+        .detail-row {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 12px 14px;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            line-height: 1.45;
+        }
+        .detail-before {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-left: 4px solid #ef4444;
+        }
+        .detail-now {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-left: 4px solid #3b82f6;
+        }
+        .detail-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+        }
+        .detail-before .detail-label {
+            color: #fca5a5; /* Более яркий красный для контраста */
+        }
+        .detail-now .detail-label {
+            color: #93c5fd; /* Более яркий синий */
+        }
+        .detail-text {
+            color: #cbd5e1; /* Высветленный текст описания вместо тусклого */
+        }
+        .detail-now .detail-text {
+            color: #e2e8f0;
         }
 
-        .result-header {
+        /* Demo Player Styles */
+        .demo-player {
+            width: 100%;
+            box-sizing: border-box;
+            max-width: 800px;
+            margin: 40px auto 0;
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(16px);
+        }
+        
+        .player-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
             padding-bottom: 16px;
-            border-bottom: 1px solid var(--card-border);
+        }
+        
+        .player-title {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background: #ef4444;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 8px #ef4444;
+            animation: pulse-red 1.5s infinite alternate;
+        }
+        
+        @keyframes pulse-red {
+            0% { transform: scale(0.9); opacity: 0.6; }
+            100% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 12px #ef4444; }
+        }
+        
+        .player-controls {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .btn-play {
+            width: 54px;
+            height: 54px;
+            border-radius: 50%;
+            background: var(--primary);
+            border: none;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+        
+        .btn-play:hover {
+            transform: scale(1.05);
+            background: var(--accent);
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.6);
+        }
+        
+        .waveform-container {
+            flex-grow: 1;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            overflow: hidden;
+            position: relative;
+            min-width: 0; /* Crucial for preventing flex children from blowing out parent width */
+        }
+        
+        .wave-bar {
+            width: 3px;
+            height: 20%;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 3px;
+            transition: height 0.1s ease, background 0.3s ease;
+        }
+        
+        .demo-player.playing .wave-bar {
+            background: var(--accent);
+            animation: bounce-wave 1.2s ease-in-out infinite alternate;
+        }
+        
+        .demo-player.playing .wave-bar:nth-child(2n) { animation-delay: 0.1s; }
+        .demo-player.playing .wave-bar:nth-child(3n) { animation-delay: 0.2s; }
+        .demo-player.playing .wave-bar:nth-child(4n) { animation-delay: 0.3s; }
+        .demo-player.playing .wave-bar:nth-child(5n) { animation-delay: 0.4s; }
+        
+        @keyframes bounce-wave {
+            0% { height: 15%; }
+            100% { height: 95%; }
+        }
+        
+        .transcript-output {
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            padding: 20px;
+            height: 250px; /* Fixed taller height to avoid jumping */
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: var(--text-muted);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .transcript-line {
+            display: flex;
+            gap: 12px;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.5s ease;
+        }
+        
+        .transcript-line.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .line-time {
+            color: var(--primary);
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        
+        .line-speaker {
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        
+        .sp-1 { color: var(--accent); }
+        .sp-2 { color: #f59e0b; }
+        
+        .line-text {
+            color: #f1f5f9;
         }
 
-        .file-info {
+        /* ROI Calculator Styles */
+        .roi-calculator {
+            max-width: 800px;
+            margin: 0 auto 50px;
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.6) 100%);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(12px);
+        }
+        
+        .roi-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 32px;
+            align-items: center;
+        }
+        
+        .roi-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .roi-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #fff;
+        }
+        
+        .roi-slider-wrap {
+            position: relative;
+        }
+        
+        .roi-slider-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+        
+        .roi-slider-label strong {
+            color: var(--accent);
+            font-size: 1.1rem;
+        }
+        
+        .roi-slider {
+            width: 100%;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            border-radius: 5px;
+            background: var(--border);
+            outline: none;
+            transition: background 0.3s;
+        }
+        
+        .roi-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--glow);
+            transition: transform 0.1s;
+        }
+        
+        .roi-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+        
+        .roi-results {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .roi-res-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.95rem;
+            color: var(--text-muted);
+        }
+        
+        .roi-res-value {
+            font-weight: 700;
+            color: #fff;
+            white-space: nowrap;
+        }
+        
+        .roi-res-savings {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 16px;
             display: flex;
             flex-direction: column;
             gap: 4px;
         }
-
-        .file-name {
-            font-weight: 600;
-            font-size: 1.1rem;
-            color: var(--text-main);
-            max-width: 400px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .processing-time {
-            font-size: 0.85rem;
-            color: var(--secondary);
-            font-weight: 500;
-        }
-
-        .text-area-wrapper {
-            position: relative;
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 12px;
-            border: 1px solid var(--card-border);
-            margin-bottom: 24px;
-        }
-
-        .transcription-text {
-            width: 100%;
-            height: 300px;
-            background: transparent;
-            border: none;
-            color: var(--text-main);
-            padding: 20px;
-            font-size: 1rem;
-            line-height: 1.6;
-            resize: none;
-            outline: none;
-            overflow-y: auto;
-        }
-
-        /* Buttons and Interactive Elements */
-        .btn-group {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            flex: 1;
-            min-width: 140px;
-            padding: 14px 20px;
-            border-radius: 12px;
-            font-size: 0.95rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
+        
+        .roi-savings-amount {
             display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 8px;
-            outline: none;
+            height: 54px; /* Жестко фиксируем высоту под 2 строки текста */
+            font-size: 1.8rem;
+            font-weight: 800;
+            line-height: 1.1;
+            color: #10b981;
+            text-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+            transition: color 0.2s ease, text-shadow 0.2s ease;
         }
-
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary) 0%, #6d28d9 100%);
-            color: white;
-            border: none;
-            box-shadow: 0 4px 15px rgba(138, 43, 226, 0.3);
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(138, 43, 226, 0.45);
-        }
-
-        .btn-secondary {
-            background: rgba(255, 255, 255, 0.05);
-            color: var(--text-main);
-            border: 1px solid var(--card-border);
-        }
-
-        .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.1);
-            transform: translateY(-2px);
-        }
-
-        .btn-accent {
-            background: transparent;
-            color: var(--secondary);
-            border: 1px solid rgba(0, 242, 254, 0.3);
-        }
-
-        .btn-accent:hover {
-            background: rgba(0, 242, 254, 0.05);
-            border-color: var(--secondary);
-            transform: translateY(-2px);
-        }
-
-        .btn:active {
-            transform: translateY(1px);
-        }
-
-        /* Copy feedback toast */
-        .toast {
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%) translateY(100px);
-            background: rgba(138, 43, 226, 0.9);
-            color: white;
-            padding: 12px 24px;
-            border-radius: 30px;
-            font-weight: 600;
-            font-size: 0.9rem;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-            backdrop-filter: blur(10px);
-            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            z-index: 100;
-            pointer-events: none;
-        }
-
-        .toast.show {
-            transform: translateX(-50%) translateY(0);
-        }
-
-        /* Footer */
-        .footer {
-            margin-top: 40px;
-            color: var(--text-muted);
-            font-size: 0.8rem;
-            text-align: center;
-        }
-
-        .footer a {
-            color: var(--secondary);
-            text-decoration: none;
-        }
-
-        /* Diarization Settings Styles */
-        .settings-container {
-            margin-top: 24px;
-            padding: 20px;
-            background: rgba(255, 255, 255, 0.02);
-            border-radius: 12px;
-            border: 1px solid var(--card-border);
-            text-align: left;
-        }
-
-        .settings-title {
-            font-size: 0.95rem;
-            font-weight: 600;
-            color: var(--text-main);
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .settings-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-            max-height: 200px;
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        .settings-grid.collapsed {
-            max-height: 0;
-            opacity: 0;
-            transform: translateY(-10px);
-            pointer-events: none;
-            margin-top: 0 !important;
-            gap: 0;
-        }
-
-        @media (max-width: 600px) {
-            .settings-grid {
+        
+        @media (max-width: 768px) {
+            .roi-grid {
                 grid-template-columns: 1fr;
             }
-            .settings-grid:not(.collapsed) {
-                max-height: 500px;
-            }
         }
 
-        /* Slide-Toggle Switch Styles */
-        .toggle-wrapper {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .toggle-wrapper .settings-title {
-            margin-bottom: 0;
-        }
-
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 44px;
-            height: 24px;
-        }
-
-        .switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .slider {
-            position: absolute;
-            cursor: pointer;
+        /* Modal Overlay and Form Styles */
+        .modal-overlay {
+            position: fixed;
             top: 0;
             left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(255, 255, 255, 0.08);
-            transition: .3s;
-            border: 1px solid var(--card-border);
-        }
-
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 16px;
-            width: 16px;
-            left: 3px;
-            bottom: 3px;
-            background-color: var(--text-main);
-            transition: .3s;
-        }
-
-        input:checked + .slider {
-            background-color: var(--primary);
-            border-color: var(--primary);
-        }
-
-        input:focus + .slider {
-            box-shadow: 0 0 1px var(--primary);
-        }
-
-        input:checked + .slider:before {
-            transform: translateX(20px);
-        }
-
-        .slider.round {
-            border-radius: 24px;
-        }
-
-        .slider.round:before {
-            border-radius: 50%;
-        }
-
-        .settings-item {
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 2000;
             display: flex;
-            flex-direction: column;
-            gap: 8px;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
             transition: opacity 0.3s ease;
         }
-
-        .settings-item label {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            font-weight: 500;
-        }
-
-        .settings-item input {
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid var(--card-border);
-            border-radius: 8px;
-            padding: 10px 12px;
-            color: var(--text-main);
-            font-size: 0.9rem;
-            outline: none;
-            transition: all 0.2s ease;
-        }
-
-        .settings-item input:focus {
-            border-color: var(--secondary);
-            box-shadow: 0 0 8px rgba(0, 242, 254, 0.2);
-        }
-
-        /* Pipeline / Checkpoints Styles */
-        .pipeline-container {
-            width: 100%;
-            margin: 20px 0 35px 0;
-            padding: 10px 0;
-        }
-
-        .pipeline-steps {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            position: relative;
-            width: 100%;
-        }
-
-        .step-node {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            position: relative;
-            z-index: 2;
-            flex: 1;
-            transition: all 0.3s ease;
-        }
-
-        .step-circle {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.03);
-            border: 2px solid rgba(255, 255, 255, 0.08);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.3rem;
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            box-shadow: 0 0 0 rgba(138, 43, 226, 0);
-        }
-
-        .step-icon {
-            transition: all 0.3s ease;
-        }
-
-        .step-check {
-            display: none;
-            font-size: 1.1rem;
-            font-weight: bold;
-            color: #00f2fe;
-            text-shadow: 0 0 10px rgba(0, 242, 254, 0.5);
-        }
-
-        .step-label {
-            margin-top: 10px;
-            font-size: 0.8rem;
-            font-weight: 500;
-            color: var(--text-muted);
-            text-align: center;
-            transition: all 0.3s ease;
-            white-space: nowrap;
-        }
-
-        .step-line {
-            height: 2px;
-            background: rgba(255, 255, 255, 0.08);
-            flex-grow: 1;
-            margin: 0 -10px;
-            position: relative;
-            top: -15px;
-            z-index: 1;
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        /* Statuses */
-        .step-node[data-status="pending"] {
-            opacity: 0.35;
-        }
-
-        .step-node[data-status="active"] {
+        .modal-overlay.active {
             opacity: 1;
+            pointer-events: auto;
         }
-
-        .step-node[data-status="active"] .step-circle {
-            background: rgba(138, 43, 226, 0.12);
-            border-color: var(--primary);
-            box-shadow: 0 0 20px var(--primary-glow);
-            transform: scale(1.1);
-            animation: pulseGlow 1.5s infinite alternate;
-        }
-
-        .step-node[data-status="active"] .step-label {
-            color: var(--text-main);
-            font-weight: 700;
-            text-shadow: 0 0 8px rgba(255, 255, 255, 0.25);
-        }
-
-        .step-node[data-status="completed"] {
-            opacity: 1;
-        }
-
-        .step-node[data-status="completed"] .step-circle {
-            background: rgba(0, 242, 254, 0.1);
-            border-color: var(--secondary);
-            box-shadow: 0 0 15px var(--secondary-glow);
-        }
-
-        .step-node[data-status="completed"] .step-icon {
-            display: none;
-        }
-
-        .step-node[data-status="completed"] .step-check {
-            display: block;
-        }
-
-        .step-node[data-status="completed"] .step-label {
-            color: var(--secondary);
-            font-weight: 600;
-        }
-
-        .step-node[data-status="skipped"] {
-            opacity: 0.25;
-        }
-
-        .step-node[data-status="skipped"] .step-label {
-            text-decoration: line-through;
-            color: var(--text-muted);
-        }
-
-        /* Lines */
-        .step-line[data-status="active"] {
-            background: linear-gradient(90deg, var(--secondary), var(--primary));
-            box-shadow: 0 0 8px var(--primary-glow);
-            opacity: 1;
-        }
-
-        .step-line[data-status="completed"] {
-            background: var(--secondary);
-            box-shadow: 0 0 8px var(--secondary-glow);
-            opacity: 1;
-        }
-
-        .step-line[data-status="skipped"] {
-            background: rgba(255, 255, 255, 0.04);
-            border-top: 1px dashed rgba(255, 255, 255, 0.15);
-        }
-
-        @keyframes pulseGlow {
-            0% {
-                box-shadow: 0 0 12px var(--primary-glow);
-                border-color: var(--primary);
-            }
-            100% {
-                box-shadow: 0 0 20px var(--secondary-glow);
-                border-color: var(--secondary);
-            }
-        }
-
-        @media (max-width: 650px) {
-            .pipeline-steps {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 20px;
-                padding-left: 20px;
-            }
-            .step-node {
-                flex-direction: row;
-                gap: 15px;
-                align-items: center;
-                width: 100%;
-                flex: none;
-            }
-            .step-circle {
-                width: 44px;
-                height: 44px;
-                font-size: 1.1rem;
-            }
-            .step-label {
-                margin-top: 0;
-                text-align: left;
-            }
-            .step-line {
-                width: 2px;
-                height: 20px;
-                margin: -10px 0 -10px 20px;
-                top: 0;
-                left: 0;
-                flex-grow: 0;
-            }
-        }
-
-        /* Authentication Styles */
-        .auth-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 20px;
-            width: 100%;
-            box-sizing: border-box;
-            z-index: 10;
-            position: relative;
-        }
-
-        .auth-card {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(12px) saturate(180%);
-            -webkit-backdrop-filter: blur(12px) saturate(180%);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 20px;
+        .modal-content {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.98) 0%, rgba(15, 23, 42, 0.99) 100%);
+            border: 1px solid var(--border);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border-radius: 24px;
+            width: 90%;
+            max-width: 500px;
             padding: 40px;
-            width: 100%;
-            max-width: 420px;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-            text-align: center;
-            animation: fadeIn 0.5s ease-out;
-        }
-
-        .auth-card h2 {
-            font-size: 24px;
-            font-weight: 600;
-            color: var(--text-main);
-            margin-bottom: 8px;
-            background: linear-gradient(135deg, #ffffff 0%, rgba(255,255,255,0.7) 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .auth-card p {
-            color: var(--text-muted);
-            font-size: 14px;
-            margin-bottom: 24px;
-        }
-
-        .auth-input-wrapper {
             position: relative;
-            margin-bottom: 20px;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
         }
-
-        .auth-input {
-            width: 100%;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 12px;
-            padding: 14px 16px;
-            color: var(--text-main);
-            font-size: 15px;
-            outline: none;
-            transition: all 0.3s ease;
-            box-sizing: border-box;
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
         }
-
-        .auth-input:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
-            background: rgba(255, 255, 255, 0.08);
-        }
-
-        .auth-btn {
-            width: 100%;
-            background: var(--gradient-btn);
-            color: white;
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
             border: none;
-            border-radius: 12px;
-            padding: 14px;
-            font-size: 15px;
-            font-weight: 500;
+            color: var(--text-muted);
+            font-size: 1.8rem;
             cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+            line-height: 1;
+            transition: color 0.2s;
         }
-
-        .auth-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
-            filter: brightness(1.1);
+        .modal-close:hover {
+            color: #fff;
         }
-
-        .auth-btn:active {
-            transform: translateY(0);
+        .form-group {
+            margin-bottom: 16px;
+            text-align: left;
         }
-
-        .auth-error {
+        .form-group label {
+            display: block;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            font-weight: 700;
+        }
+        .form-group input, .form-group textarea {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 14px;
+            color: #fff;
+            font-size: 0.95rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            outline: none;
+        }
+        .form-group input:focus, .form-group textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+        .form-error {
             color: #ef4444;
-            font-size: 13px;
-            margin-top: 12px;
-            display: none;
-            min-height: 18px;
+            font-size: 0.85rem;
+            margin-top: 10px;
+            text-align: left;
+        }
+        .success-icon-wrap {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: rgba(16, 185, 129, 0.1);
+            border: 2px solid rgba(16, 185, 129, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+        }
+        .success-icon {
+            width: 36px;
+            height: 36px;
+        }
+        
+        /* --- Mobile Optimization --- */
+        @media (max-width: 768px) {
+            /* Typography & Padding */
+            .hero h1 { font-size: 2.2rem; }
+            .hero p { font-size: 1.1rem; }
+            .section-title { font-size: 2rem; margin-bottom: 40px; }
+            .cta-section h2 { font-size: 2.2rem; }
+            
+            .hero { padding: 60px 0 40px; }
+            .section, .cta-section { padding: 50px 0; }
+            
+            /* Header */
+            .nav-container { height: 70px; flex-direction: row; }
+            .logo { font-size: 1.1rem; }
+            .nav-links .btn { padding: 8px 16px; font-size: 0.85rem; }
+            
+            /* Grids */
+            .grid-4, .grid-3, .cases-grid, .stats-grid { grid-template-columns: 1fr; }
+            
+            /* Stats Section */
+            .stat-item { border-right: none; border-bottom: 1px solid var(--border); padding: 24px 16px; }
+            .stat-item:last-child { border-bottom: none; }
+            
+            /* Cards and Nodes safety */
+            .pl-node { min-width: 0; padding: 24px 16px; }
+            .satellite-card { padding: 24px 16px; }
+            .pricing-card { padding: 24px 16px; }
+            .pricing-card .price { font-size: 2rem; }
+            
+            /* Transform Box (Before/After) */
+            .transform-box { padding: 24px 16px; }
+            .transform-label { font-size: 1rem; margin-bottom: 24px; }
+            
+            /* Form Modal */
+            .modal-content { padding: 32px 20px; width: 95%; }
+            
+            /* Demo Player Fix */
+            .demo-player { padding: 16px 12px; margin: 20px auto; }
+            .player-header { flex-direction: column; align-items: stretch; gap: 12px; }
+            .waveform-container { height: 40px; }
+            .transcript-output { padding: 16px; margin-top: 16px; min-height: 100px; font-size: 0.9rem; }
+            
+            /* FAQ Mobile Fix */
+            .faq-question { padding: 16px; font-size: 1rem; }
+            .faq-answer { padding: 0 16px 16px; font-size: 0.95rem; }
         }
     </style>
 </head>
 <body>
-    <div class="ambient-bg">
-        <div class="glow-sphere-1"></div>
-        <div class="glow-sphere-2"></div>
-    </div>
 
-    <div class="auth-container" id="auth-screen" style="display: none;">
-        <div class="auth-card">
-            <h2>Доступ к Whisper</h2>
-            <p>Введите имя пользователя и пароль для входа</p>
-            <form id="auth-form" onsubmit="handleLogin(event)">
-                <div class="auth-input-wrapper">
-                    <input type="text" id="auth-username" class="auth-input" placeholder="Имя пользователя" autocomplete="username" required style="margin-bottom: 12px;">
-                    <input type="password" id="auth-password" class="auth-input" placeholder="Пароль" autocomplete="current-password" required>
-                </div>
-                <button type="submit" class="auth-btn">Войти</button>
-                <div class="auth-error" id="auth-error-msg">Неверное имя пользователя или пароль</div>
-            </form>
+    <header>
+        <div class="container nav-container">
+            <div class="logo">
+                <svg class="logo-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>
+                <span>Локальная Транскрибация</span>
+            </div>
+            <nav>
+                <a href="/app" class="btn btn-outline">Войти в приложение</a>
+            </nav>
         </div>
-    </div>
+    </header>
 
-    <div class="container" id="main-container" style="display: none;">
-        <div class="header">
-            <h1>Whisper AI</h1>
-            <p>Молниеносная транскрибация видео и аудио в текст</p>
-        </div>
-
-        <div class="glass-card" id="card">
-            <!-- Upload State -->
-            <div id="upload-state">
-                <div class="upload-area" id="drop-zone">
-                    <span class="upload-icon">⚡</span>
-                    <p class="upload-text-primary">Перетащите файл сюда или нажмите для выбора</p>
-                    <p class="upload-text-secondary">Поддерживаются видео (MP4, MKV, WEBM, MOV, TS, VOB и др.) и аудио (MP3, WAV, M4A, AAC, OPUS, AMR, WMA и др.)</p>
-                    <input type="file" id="file-input" accept="video/*,audio/*">
+    <main>
+        <section class="hero container">
+            <div class="animate-fade-in">
+                <div class="hero-badge">On-Premise / Локальное Решение</div>
+                <h1>Безопасная транскрибация аудио<br>в текст на ваших компьютерах</h1>
+                <p>Надежная программа для автоматического перевода аудио и видео в текст. Работает локально без интернета — ваши файлы никогда не покинут пределы компании.</p>
+                <div class="hero-actions">
+                    <a href="javascript:void(0)" onclick="openDemoModal()" class="btn btn-primary" style="padding: 16px 40px; font-size: 1.1rem;">Запросить демо</a>
                 </div>
+            </div>
+        </section>
 
-                <!-- Diarization Settings Container -->
-                <div class="settings-container">
-                    <div class="toggle-wrapper" style="margin-bottom: 16px;">
-                        <div class="settings-title" style="margin-bottom: 0;">👥 Разделение по ролям (диаризация)</div>
-                        <label class="switch">
-                            <input type="checkbox" id="diarize-toggle" checked>
-                            <span class="slider round"></span>
-                        </label>
+        <!-- Animated stats -->
+        <section class="stats-section">
+            <div class="container">
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-number" data-target="97"><span class="counter">0</span>%</div>
+                        <div class="stat-label">Точность распознавания<br>русской речи</div>
                     </div>
-                    <div class="settings-grid" id="settings-grid">
-                        <div class="settings-item">
-                            <label for="num-speakers">Количество спикеров</label>
-                            <input type="number" id="num-speakers" min="1" max="20" placeholder="Автоопределение">
+                    <div class="stat-item">
+                        <div class="stat-number"><span>5</span> мин</div>
+                        <div class="stat-label">обработка 1 часа<br>аудиозаписи</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number"><span>0</span> байт</div>
+                        <div class="stat-label">ваших данных<br>покинуло компанию</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number"><span>1</span> день</div>
+                        <div class="stat-label">внедрение без<br>найма программистов</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Ticker -->
+        <section class="ticker-section">
+            <div class="ticker-track" id="ticker">
+                <span class="ticker-item"><span class="dot"></span><strong>MP3</strong></span>
+                <span class="ticker-item"><span class="dot"></span><strong>MP4</strong></span>
+                <span class="ticker-item"><span class="dot"></span><strong>WAV</strong></span>
+                <span class="ticker-item"><span class="dot"></span><strong>MOV</strong></span>
+                <span class="ticker-item"><span class="dot"></span><strong>M4A</strong></span>
+                <span class="ticker-item"><span class="dot"></span>Разбивка по спикерам</span>
+                <span class="ticker-item"><span class="dot"></span>Без интернета</span>
+                <span class="ticker-item"><span class="dot"></span>Русский язык</span>
+                <span class="ticker-item"><span class="dot"></span>Экспорт TXT</span>
+                <span class="ticker-item"><span class="dot"></span>Данные не покидают офис</span>
+                <span class="ticker-item"><span class="dot"></span>Таймкоды для каждой фразы</span>
+                <span class="ticker-item"><span class="dot"></span><strong>MP3</strong></span>
+                <span class="ticker-item"><span class="dot"></span><strong>MP4</strong></span>
+                <span class="ticker-item"><span class="dot"></span><strong>WAV</strong></span>
+                <span class="ticker-item"><span class="dot"></span><strong>MOV</strong></span>
+                <span class="ticker-item"><span class="dot"></span><strong>M4A</strong></span>
+                <span class="ticker-item"><span class="dot"></span>Разбивка по спикерам</span>
+                <span class="ticker-item"><span class="dot"></span>Без интернета</span>
+                <span class="ticker-item"><span class="dot"></span>Русский язык</span>
+                <span class="ticker-item"><span class="dot"></span>Экспорт TXT</span>
+                <span class="ticker-item"><span class="dot"></span>Данные не покидают офис</span>
+                <span class="ticker-item"><span class="dot"></span>Таймкоды для каждой фразы</span>
+            </div>
+        </section>
+
+        <!-- Before/After -->
+        <section class="transform-section section">
+            <div class="container">
+                <h2 class="section-title animate-fade-in">Что меняется для вас</h2>
+                <div class="transform-grid animate-fade-in delay-1">
+                    <div class="transform-box before">
+                        <div class="transform-label">ДО</div>
+                        <div class="transform-item">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                            Часы ручного труда на расшифровку одного звонка
                         </div>
-                        <div class="settings-item">
-                            <label for="min-speakers">Минимум спикеров</label>
-                            <input type="number" id="min-speakers" min="1" max="20" placeholder="2">
+                        <div class="transform-item">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                            Риск утечки конфиденциальных данных в облака
                         </div>
-                        <div class="settings-item">
-                            <label for="max-speakers">Максимум спикеров</label>
-                            <input type="number" id="max-speakers" min="1" max="20" placeholder="10">
+                        <div class="transform-item">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                            Необходимость содержать штат сотрудников для расшифровок
+                        </div>
+                        <div class="transform-item">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                            Ошибки и потерянный контекст при ручном вводе
+                        </div>
+                    </div>
+                    
+                    <div class="transform-arrow-wrap">
+                        <div class="transform-badge-connector"></div>
+                        <div class="transform-badge">
+                            <span>VS</span>
+                        </div>
+                    </div>
+                    
+                    <div class="transform-box after">
+                        <div class="transform-label">ПОСЛЕ</div>
+                        <div class="transform-item">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            Готовая расшифровка за несколько минут
+                        </div>
+                        <div class="transform-item">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            Абсолютная безопасность on-premise (локального) решения
+                        </div>
+                        <div class="transform-item">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            Автономная кнопка — быстрый результат без персонала
+                        </div>
+                        <div class="transform-item">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            Точный текст с умной разбивкой по спикерам
                         </div>
                     </div>
                 </div>
             </div>
+        </section>
 
-            <!-- Loading State -->
-            <div class="loading-container" id="loading-state">
-                <!-- Checkpoints Pipeline -->
-                <div class="pipeline-container">
-                    <div class="pipeline-steps">
-                        <div class="step-node" id="step-upload" data-status="pending">
-                            <div class="step-circle">
-                                <span class="step-icon">📤</span>
-                                <span class="step-check">✓</span>
-                            </div>
-                            <div class="step-label" id="label-upload">Загрузка</div>
-                        </div>
-                        
-                        <div class="step-line" id="line-upload-preprocess" data-status="pending"></div>
-                        
-                        <div class="step-node" id="step-preprocess" data-status="pending">
-                            <div class="step-circle">
-                                <span class="step-icon">⚙️</span>
-                                <span class="step-check">✓</span>
-                            </div>
-                            <div class="step-label" id="label-preprocess">Конвертация</div>
-                        </div>
-                        
-                        <div class="step-line" id="line-preprocess-diarize" data-status="pending"></div>
-                        
-                        <div class="step-node" id="step-diarize" data-status="pending">
-                            <div class="step-circle">
-                                <span class="step-icon">👥</span>
-                                <span class="step-check">✓</span>
-                            </div>
-                            <div class="step-label" id="label-diarize">Диаризация</div>
-                        </div>
-                        
-                        <div class="step-line" id="line-diarize-transcribe" data-status="pending"></div>
-                        
-                        <div class="step-node" id="step-transcribe" data-status="pending">
-                            <div class="step-circle">
-                                <span class="step-icon">🎙️</span>
-                                <span class="step-check">✓</span>
-                            </div>
-                            <div class="step-label" id="label-transcribe">Распознавание</div>
-                        </div>
-                        
-                        <div class="step-line" id="line-transcribe-done" data-status="pending"></div>
-                        
-                        <div class="step-node" id="step-done" data-status="pending">
-                            <div class="step-circle">
-                                <span class="step-icon">✨</span>
-                                <span class="step-check">✓</span>
-                            </div>
-                            <div class="step-label" id="label-done">Готово</div>
-                        </div>
+        <section class="section container" style="display:none">
+                <div class="card">
+                    <div class="icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
                     </div>
+                    <h3>Высокая точность</h3>
+                    <p>Адаптированные алгоритмы обеспечивают качественное распознавание русской речи, включая профильную терминологию, без необходимости подключения к интернету.</p>
                 </div>
+                <div class="card">
+                    <div class="icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    </div>
+                    <h3>Высокая скорость</h3>
+                    <p>Оптимизированная архитектура решения позволяет быстро обрабатывать большие объемы аудиоданных с минимальными задержками на ваших серверах.</p>
+                </div>
+                <div class="card">
+                    <div class="icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                    </div>
+                    <h3>Максимальная безопасность</h3>
+                    <p>Полностью автономная работа on-premise (локально). Никакой передачи файлов в сторонние облака. Данные хранятся исключительно в защищенном контуре.</p>
+                </div>
+                <div class="card">
+                    <div class="icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+                    </div>
+                    <h3>Простота и стабильность</h3>
+                    <p>Система сфокусирована на одной задаче — точной транскрибации. Отсутствие избыточных функций гарантирует отказоустойчивость системы.</p>
+                </div>
+            </div>
+        </section>
 
-                <div class="loading-subtitle" id="loading-subtext" style="margin-top: 20px; font-weight: 500; font-size: 1rem; color: var(--text-main);">Загрузка файла на сервер...</div>
+        <section class="section container">
+            <h2 class="section-title animate-fade-in">Как это работает</h2>
+            <div class="pipeline-wrap animate-fade-in delay-1">
+                <div class="pipeline">
+
+                    <!-- Node 1: File -->
+                    <div class="pl-node">
+                        <div class="pl-icon">
+                            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        </div>
+                        <div class="pl-label">1. Загрузили файл</div>
+                        <div class="pl-sub">MP3, MP4, WAV, MOV...</div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="pl-arrow">
+                        <div class="pl-dot"></div><div class="pl-dot"></div><div class="pl-dot"></div>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                    </div>
+
+                    <!-- Node 2: AI -->
+                    <div class="pl-node pl-node--active">
+                        <div class="pl-icon pl-icon--active">
+                            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+                            <span class="pl-pulse"></span>
+                        </div>
+                        <div class="pl-label">2. АИ обрабатывает</div>
+                        <div class="pl-sub">На вашем сервере, без интернета</div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="pl-arrow">
+                        <div class="pl-dot"></div><div class="pl-dot"></div><div class="pl-dot"></div>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                    </div>
+
+                    <!-- Node 3: Result -->
+                    <div class="pl-node">
+                        <div class="pl-icon">
+                            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                        </div>
+                        <div class="pl-label">3. Готовый текст</div>
+                        <div class="pl-sub">С разбивкой по спикерам</div>
+                    </div>
+
+                </div>
+                <div class="pipeline-badge">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    Данные не покидают ваш офис ни на одном этапе
+                </div>
                 
-                <div class="progress-bar-container" id="progress-container" style="display: none; width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; margin-top: 20px; overflow: hidden;">
-                    <div class="progress-bar-fill" id="progress-fill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); transition: width 0.1s ease; border-radius: 3px;"></div>
-                </div>
-            </div>
-
-            <!-- Result State -->
-            <div class="result-container" id="result-state">
-                <div class="result-header">
-                    <div class="file-info">
-                        <span class="file-name" id="result-filename">filename.mp4</span>
-                        <span class="processing-time" id="result-time">Время обработки: 14.2 сек</span>
+                <!-- Demo Player -->
+                <div class="demo-player animate-fade-in delay-2" id="demoPlayer">
+                    <div class="player-header">
+                        <div class="player-title">
+                            <span class="pulse-dot"></span> Интерактивный демонстрационный плеер
+                        </div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted);">Нажмите Play (Воспроизвести) для запуска локальной расшифровки</div>
+                    </div>
+                    <div class="player-controls">
+                        <button class="btn-play" id="playDemoBtn" aria-label="Воспроизвести демо">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                        </button>
+                        <div class="waveform-container" id="demoWaveform">
+                            <!-- JS will inject wave bars here -->
+                        </div>
+                    </div>
+                    <div class="transcript-output" id="transcriptOutput">
+                        <div style="color: var(--text-muted); text-align: center; margin-top: 50px;">Здесь отобразится текст расшифровки в реальном времени...</div>
                     </div>
                 </div>
-                <div class="text-area-wrapper">
-                    <textarea class="transcription-text" id="transcription-content" readonly></textarea>
+            </div>
+        </section>
+
+        <section class="section container">
+            <h2 class="section-title animate-fade-in">Для кого создано решение</h2>
+            <div class="orbital-layout animate-fade-in delay-1">
+                <!-- Central Hub -->
+                <div class="orbital-hub">
+                    <div class="hub-pulse"></div>
+                    <div class="hub-icon">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    </div>
+                    <div class="hub-text">Сферы</div>
                 </div>
-                <div class="btn-group">
-                    <button class="btn btn-secondary" id="btn-copy">
-                        <span>📋</span> Копировать
-                    </button>
-                    <button class="btn btn-accent" id="btn-download">
-                        <span>💾</span> Скачать TXT
-                    </button>
-                    <button class="btn btn-primary" id="btn-reset">
-                        <span>🔄</span> Новый файл
-                    </button>
+                
+                <div class="satellite-cards">
+                    <!-- Card 1 -->
+                    <div class="satellite-card sat-1">
+                        <div class="industry">Служба Безопасности</div>
+                        <h3>Анализ без утечек</h3>
+                        <div class="case-details">
+                            <div class="detail-row detail-before">
+                                <span class="detail-label">Раньше</span>
+                                <span class="detail-text">Отправка файлов во внешние облачные сервисы создавала высокие риски утечки конфиденциальных данных.</span>
+                            </div>
+                            <div class="detail-row detail-now">
+                                <span class="detail-label">Теперь</span>
+                                <span class="detail-text">Полный контроль над речевыми данными. Все аудиофайлы расшифровываются строго локально, без доступа к интернету.</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Card 2 -->
+                    <div class="satellite-card sat-2">
+                        <div class="industry">Юридический отдел</div>
+                        <h3>Протоколы совещаний</h3>
+                        <div class="case-details">
+                            <div class="detail-row detail-before">
+                                <span class="detail-label">Раньше</span>
+                                <span class="detail-text">Секретарь тратил до 4 часов ручного труда на ручную расшифровку часовой рабочей встречи.</span>
+                            </div>
+                            <div class="detail-row detail-now">
+                                <span class="detail-label">Теперь</span>
+                                <span class="detail-text">Готовый структурированный текст с автоматической разбивкой по участникам доступен уже через 5 минут.</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Card 3 -->
+                    <div class="satellite-card sat-3">
+                        <div class="industry">Медиа и Подкасты</div>
+                        <h3>Быстрые субтитры</h3>
+                        <div class="case-details">
+                            <div class="detail-row detail-before">
+                                <span class="detail-label">Раньше</span>
+                                <span class="detail-text">Ручной тайминг субтитров и нарезка реплик отнимали у монтажера весь вечер после записи.</span>
+                            </div>
+                            <div class="detail-row detail-now">
+                                <span class="detail-label">Теперь</span>
+                                <span class="detail-text">Автоматическая генерация точных тайм-кодов и мгновенный экспорт в готовый формат субтитров SRT.</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <div class="footer">
-            Whisper AI MVP &bull; Powered by OpenAI Whisper Large v3 Turbo & FastAPI
-        </div>
-    </div>
-
-    <div class="toast" id="toast">Текст скопирован в буфер обмена!</div>
-
-    <script>
-        const dropZone = document.getElementById('drop-zone');
-        const fileInput = document.getElementById('file-input');
-        const uploadState = document.getElementById('upload-state');
-        const loadingState = document.getElementById('loading-state');
-        const resultState = document.getElementById('result-state');
-        const loadingSubtext = document.getElementById('loading-subtext');
-        const card = document.getElementById('card');
-        
-        const resultFilename = document.getElementById('result-filename');
-        const resultTime = document.getElementById('result-time');
-        const transcriptionContent = document.getElementById('transcription-content');
-        
-        const btnCopy = document.getElementById('btn-copy');
-        const btnDownload = document.getElementById('btn-download');
-        const btnReset = document.getElementById('btn-reset');
-        const toast = document.getElementById('toast');
-
-        let currentResult = {
-            text: '',
-            filename: ''
-        };
-
-        // Checkpoints / Pipeline UI Logic
-        function updatePipeline(step, status) {
-            const el = document.getElementById(`step-${step}`);
-            if (el) {
-                el.setAttribute('data-status', status);
-            }
-            updateLines();
-        }
-
-        function updateLines() {
-            const getStatus = (stepId) => {
-                const el = document.getElementById(`step-${stepId}`);
-                return el ? el.getAttribute('data-status') : 'pending';
-            };
+        <section class="section container" id="pricing">
+            <h2 class="section-title animate-fade-in">Стоимость лицензий</h2>
             
-            const lines = [
-                { id: 'line-upload-preprocess', from: 'upload', to: 'preprocess' },
-                { id: 'line-preprocess-diarize', from: 'preprocess', to: 'diarize' },
-                { id: 'line-diarize-transcribe', from: 'diarize', to: 'transcribe' },
-                { id: 'line-transcribe-done', from: 'transcribe', to: 'done' }
+            <!-- ROI Calculator -->
+            <div class="roi-calculator animate-fade-in delay-1">
+                <div class="roi-grid">
+                    <div class="roi-controls">
+                        <div class="roi-title">Калькулятор экономии</div>
+                        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">Посмотрите, сколько вы экономите по сравнению с публичными облаками (Яндекс SpeechKit ~144 ₽/час).</p>
+                        <div class="roi-slider-wrap">
+                            <div class="roi-slider-label">
+                                <span>Объем аудио в месяц:</span>
+                                <strong id="roiHoursValue">500 ч</strong>
+                            </div>
+                            <input type="range" min="50" max="5000" step="50" value="500" class="roi-slider" id="roiHours">
+                        </div>
+                    </div>
+                    <div class="roi-results">
+                        <div class="roi-res-item">
+                            <span>Затраты в облаке (API):</span>
+                            <span class="roi-res-value" id="cloudCost">4,500 ₽</span>
+                        </div>
+                        <div class="roi-res-item">
+                            <span>Стоимость нашей лицензии:</span>
+                            <span class="roi-res-value" id="ourCost">49,900 ₽</span>
+                        </div>
+                        <div class="roi-res-savings">
+                            <span style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em;">Ежемесячная экономия:</span>
+                            <span class="roi-savings-amount" id="savingsValue">0 ₽/мес</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="grid-3 animate-fade-in delay-1">
+                <div class="pricing-card">
+                    <h3>Старт</h3>
+                    <div class="price">19 900 ₽<span> / мес</span></div>
+                    <ul class="pricing-features">
+                        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Дневной лимит: до 10 часов аудио</li>
+                        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>On-premise / Локальная установка</li>
+                        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Базовая техническая поддержка</li>
+                    </ul>
+                    <a href="javascript:void(0)" onclick="openDemoModal()" class="btn btn-outline" style="width: 100%;">Выбрать тариф</a>
+                </div>
+                <div class="pricing-card" style="border-color: var(--primary); transform: scale(1.02); box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 2;">
+                    <div style="position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: var(--primary); color: #fff; font-size: 0.8rem; padding: 6px 16px; border-radius: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; box-shadow: 0 4px 10px var(--glow);">Оптимальный</div>
+                    <h3>Бизнес</h3>
+                    <div class="price">49 900 ₽<span> / мес</span></div>
+                    <ul class="pricing-features">
+                        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Дневной лимит: до 50 часов аудио</li>
+                        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>On-premise / Локальная установка</li>
+                        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Приоритетная поддержка</li>
+                    </ul>
+                    <a href="javascript:void(0)" onclick="openDemoModal()" class="btn btn-primary" style="width: 100%;">Выбрать тариф</a>
+                </div>
+                <div class="pricing-card">
+                    <h3>Корпорация</h3>
+                    <div class="price">149 900 ₽<span> / мес</span></div>
+                    <ul class="pricing-features">
+                        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Дневной лимит: Без ограничений</li>
+                        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>On-premise / Локальная установка</li>
+                        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Выделенный аккаунт-менеджер</li>
+                    </ul>
+                    <a href="javascript:void(0)" onclick="openDemoModal()" class="btn btn-outline" style="width: 100%;">Выбрать тариф</a>
+                </div>
+            </div>
+            <p class="pricing-footer animate-fade-in delay-2">Оплата производится в формате приобретения периодической лицензии. Решение доступно только для компаний на территории Российской Федерации. Продукт поставляется «как есть», без дополнительных надстроек.</p>
+        </section>
+
+        <section class="section container faq-container">
+            <h2 class="section-title animate-fade-in">Частые вопросы</h2>
+            <div class="faq animate-fade-in delay-1">
+                <div class="faq-item">
+                    <div class="faq-question" onclick="this.parentElement.classList.toggle('active')">
+                        Как работает лицензия и дневной лимит?
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </div>
+                    <div class="faq-answer">Вы приобретаете лицензию с выбранной квотой. Лицензия разрешает обрабатывать определенный объем аудио в сутки на вашем оборудовании. Лимит обновляется каждый день. Вы можете расширить лицензию в любой момент, если объемы вырастут.</div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-question" onclick="this.parentElement.classList.toggle('active')">
+                        Как обеспечивается безопасность данных?
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </div>
+                    <div class="faq-answer">Безопасность гарантируется архитектурой on-premise (локального развертывания). Система физически изолирована от внешних сетей и не имеет программных модулей для отправки данных вовне. Все вычисления производятся локально.</div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-question" onclick="this.parentElement.classList.toggle('active')">
+                        Есть ли интеграции с CRM или сторонними сервисами?
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </div>
+                    <div class="faq-answer">Нет. Продукт поставляется как самостоятельное, закрытое решение. Отсутствие внешних интеграций — осознанный шаг для исключения любых уязвимостей в безопасности.</div>
+                </div>
+
+            </div>
+        </section>
+
+        <section class="cta-section" id="contact">
+            <div class="container animate-fade-in">
+                <h2>Начните безопасную транскрибацию в вашем контуре</h2>
+                <p>Оставьте заявку на демонстрацию работы системы и обсуждение условий внедрения.</p>
+                <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
+                    <a href="javascript:void(0)" onclick="openDemoModal()" class="btn btn-primary" style="padding: 12px 36px;">Запросить демо</a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <h4>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>
+                        Локальная Транскрибация
+                    </h4>
+                    <p>Абсолютная безопасность речевых данных. Ваш контур — ваши данные.</p>
+                </div>
+                <div style="display: flex; gap: 64px; flex-wrap: wrap;">
+                    <div class="footer-links-col">
+                        <h5>Контакты</h5>
+                        <a href="mailto:hello@dev-bot.su" style="color: var(--primary); font-weight: 600; font-size: 1.1rem; display: inline-block; margin-top: 8px;">hello@dev-bot.su</a>
+                    </div>
+                    <div class="footer-links-col">
+                        <h5>Документы</h5>
+                        <a href="/privacy" target="_blank">Политика конфиденциальности</a>
+                        <a href="/terms" target="_blank">Пользовательское соглашение</a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <span>© 2026. Все права защищены. Россия.</span>
+            </div>
+        </div>
+    </footer>
+    
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            // Scroll fade-in animation
+            const fadeObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.animationPlayState = 'running';
+                        fadeObserver.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+            document.querySelectorAll('.animate-fade-in').forEach(el => {
+                // If already in viewport on load — show immediately without animation
+                const rect = el.getBoundingClientRect();
+                if (rect.top < window.innerHeight && rect.bottom > 0) {
+                    el.style.animationPlayState = 'running';
+                } else {
+                    el.style.animationPlayState = 'paused';
+                    fadeObserver.observe(el);
+                }
+            });
+
+            // Counter animation for 97%
+            const counterEl = document.querySelector('.counter');
+            if (counterEl) {
+                const target = parseInt(counterEl.closest('[data-target]').dataset.target);
+                const counterObserver = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            let start = 0;
+                            const duration = 1800;
+                            const step = Math.ceil(target / (duration / 16));
+                            const timer = setInterval(() => {
+                                start = Math.min(start + step, target);
+                                counterEl.textContent = start;
+                                if (start >= target) clearInterval(timer);
+                            }, 16);
+                            counterObserver.unobserve(entry.target);
+                        }
+                    });
+                }, { threshold: 0.5 });
+                counterObserver.observe(counterEl.closest('.stat-item'));
+            }
+
+            // --- Interactive Demo Player Logic ---
+            const waveform = document.getElementById('demoWaveform');
+            if (waveform) {
+                for (let i = 0; i < 60; i++) {
+                    const bar = document.createElement('div');
+                    bar.classList.add('wave-bar');
+                    bar.style.height = `${Math.floor(Math.random() * 40) + 15}%`;
+                    waveform.appendChild(bar);
+                }
+            }
+            
+            const playBtn = document.getElementById('playDemoBtn');
+            const player = document.getElementById('demoPlayer');
+            const output = document.getElementById('transcriptOutput');
+            
+            let playTimeout = null;
+            let intervals = [];
+            
+            const demoPhrases = [
+                { time: '00:02', speaker: 'Спикер 1', spClass: 'sp-1', text: 'Привет! Давай проверим, как работает локальный модуль транскрибации на нашем сервере.' },
+                { time: '00:07', speaker: 'Спикер 2', spClass: 'sp-2', text: 'Привет. Звучит отлично! Главное, что аудио не передается в облако и обрабатывается локально.' },
+                { time: '00:13', speaker: 'Спикер 1', spClass: 'sp-1', text: 'Точно. Полная конфиденциальность, разметка спикеров и расстановка тайм-кодов готова.' }
             ];
             
-            lines.forEach(line => {
-                const lineEl = document.getElementById(line.id);
-                if (!lineEl) return;
-                
-                const fromStatus = getStatus(line.from);
-                const toStatus = getStatus(line.to);
-                
-                if (fromStatus === 'skipped' || toStatus === 'skipped') {
-                    lineEl.setAttribute('data-status', 'skipped');
-                } else if (fromStatus === 'completed' && toStatus === 'completed') {
-                    lineEl.setAttribute('data-status', 'completed');
-                } else if (fromStatus === 'completed' && toStatus === 'active') {
-                    lineEl.setAttribute('data-status', 'active');
-                } else {
-                    lineEl.setAttribute('data-status', 'pending');
-                }
-            });
-        }
-
-        function resetPipeline(diarizeEnabled) {
-            const steps = ['upload', 'preprocess', 'diarize', 'transcribe', 'done'];
-            steps.forEach(step => {
-                const el = document.getElementById(`step-${step}`);
-                if (el) {
-                    if (step === 'diarize' && !diarizeEnabled) {
-                        el.setAttribute('data-status', 'skipped');
-                        document.getElementById('label-diarize').innerText = 'Диаризация (Пропущена)';
+            if (playBtn && player && output) {
+                playBtn.addEventListener('click', () => {
+                    if (player.classList.contains('playing')) {
+                        stopDemo();
                     } else {
-                        el.setAttribute('data-status', 'pending');
-                        if (step === 'diarize') {
-                            document.getElementById('label-diarize').innerText = 'Диаризация';
-                        }
+                        startDemo();
                     }
-                }
-            });
-            
-            document.getElementById('label-upload').innerText = 'Загрузка';
-            updateLines();
-        }
-
-        // Drag and Drop handlers
-        dropZone.addEventListener('click', () => fileInput.click());
-
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('dragover');
-        });
-
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, () => {
-                dropZone.classList.remove('dragover');
-            });
-        });
-
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            if (e.dataTransfer.files.length) {
-                handleFile(e.dataTransfer.files[0]);
-            }
-        });
-
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length) {
-                handleFile(e.target.files[0]);
-            }
-        });
-
-        function handleFile(file) {
-            const formData = new FormData();
-            formData.append('file', file);
-
-            const diarize = document.getElementById('diarize-toggle').checked;
-            formData.append('diarize', diarize);
-
-            if (diarize) {
-                const numSpeakers = document.getElementById('num-speakers').value;
-                const minSpeakers = document.getElementById('min-speakers').value;
-                const maxSpeakers = document.getElementById('max-speakers').value;
-
-                if (numSpeakers) formData.append('num_speakers', numSpeakers);
-                if (minSpeakers) formData.append('min_speakers', minSpeakers);
-                if (maxSpeakers) formData.append('max_speakers', maxSpeakers);
-            }
-
-            // UI Transitions
-            uploadState.style.display = 'none';
-            loadingState.style.display = 'flex';
-            
-            const progressContainer = document.getElementById('progress-container');
-            const progressFill = document.getElementById('progress-fill');
-            
-            // Reset and show progress bar
-            progressContainer.style.display = 'block';
-            progressFill.style.width = '0%';
-            loadingSubtext.innerText = "Подготовка к загрузке...";
-            
-            // Initialize pipeline
-            resetPipeline(diarize);
-            updatePipeline('upload', 'active');
-
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', '/api/transcribe', true);
-            xhr.setRequestHeader('X-Username', localStorage.getItem('whisper_username') || '');
-            xhr.setRequestHeader('X-Password', localStorage.getItem('whisper_password') || '');
-
-            // Track upload progress
-            xhr.upload.onprogress = function(e) {
-                if (e.lengthComputable) {
-                    const percentComplete = Math.round((e.loaded / e.total) * 100);
-                    progressFill.style.width = percentComplete + '%';
-                    document.getElementById('label-upload').innerText = `Загрузка (${percentComplete}%)`;
-                    loadingSubtext.innerText = `Загрузка файла: ${percentComplete}%`;
-                    
-                    if (percentComplete >= 100) {
-                        document.getElementById('label-upload').innerText = `Загрузка`;
-                        updatePipeline('upload', 'completed');
-                        updatePipeline('preprocess', 'active');
-                        loadingSubtext.innerText = "Файл успешно загружен. Начинается конвертация...";
-                    }
-                }
-            };
-
-            let lastResponseLength = 0;
-            let buffer = "";
-
-            // Read response stream as it arrives
-            xhr.onprogress = function() {
-                const currentResponse = xhr.responseText;
-                const newChunk = currentResponse.substring(lastResponseLength);
-                lastResponseLength = currentResponse.length;
-
-                buffer += newChunk;
-                const lines = buffer.split("\n");
-                buffer = lines.pop(); // Keep partial line in buffer
-
-                for (const line of lines) {
-                    if (line.trim() === "") continue;
-                    try {
-                        const data = JSON.parse(line);
-                        if (data.status === "processing") {
-                            // Hide progress bar once server-side processing has started
-                            progressContainer.style.display = 'none';
-                            loadingSubtext.innerText = data.message;
-                            
-                            // Map backend stage to pipeline checkpoints
-                            if (data.stage === "queue") {
-                                updatePipeline('upload', 'completed');
-                                updatePipeline('preprocess', 'pending');
-                                if (diarize) {
-                                    updatePipeline('diarize', 'pending');
-                                } else {
-                                    updatePipeline('diarize', 'skipped');
-                                }
-                                updatePipeline('transcribe', 'pending');
-                                updatePipeline('done', 'pending');
-                            } else if (data.stage === "preprocess") {
-                                updatePipeline('upload', 'completed');
-                                updatePipeline('preprocess', 'active');
-                            } else if (data.stage === "diarize") {
-                                updatePipeline('upload', 'completed');
-                                updatePipeline('preprocess', 'completed');
-                                updatePipeline('diarize', 'active');
-                            } else if (data.stage === "diarize_failed") {
-                                updatePipeline('diarize', 'skipped');
-                                document.getElementById('label-diarize').innerText = 'Диаризация (Сбой)';
-                            } else if (data.stage === "transcribe_init") {
-                                updatePipeline('upload', 'completed');
-                                updatePipeline('preprocess', 'completed');
-                                if (diarize) {
-                                    updatePipeline('diarize', 'completed');
-                                } else {
-                                    updatePipeline('diarize', 'skipped');
-                                }
-                                updatePipeline('transcribe', 'active');
-                            } else if (data.stage === "transcribe") {
-                                updatePipeline('upload', 'completed');
-                                updatePipeline('preprocess', 'completed');
-                                if (diarize) {
-                                    updatePipeline('diarize', 'completed');
-                                } else {
-                                    updatePipeline('diarize', 'skipped');
-                                }
-                                updatePipeline('transcribe', 'active');
-                            }
-                        } else if (data.status === "completed") {
-                            progressContainer.style.display = 'none';
-                            loadingState.style.display = 'none';
-                            resultState.style.display = 'flex';
-
-                            currentResult.text = data.text;
-                            currentResult.filename = data.filename;
-
-                            resultFilename.innerText = file.name;
-                            resultTime.innerText = `Время обработки: ${data.duration_seconds} сек`;
-                            transcriptionContent.value = data.text;
-                        } else if (data.status === "error") {
-                            alert('Ошибка: ' + data.message);
-                            resetUI();
-                        }
-                    } catch (e) {
-                        console.error("Ошибка парсинга строки стрима:", e, line);
-                    }
-                }
-            };
-
-            xhr.onload = function() {
-                if (xhr.status >= 400) {
-                    let errMsg = 'Произошла ошибка при транскрибации';
-                    try {
-                        const errJson = JSON.parse(xhr.responseText);
-                        errMsg = errJson.detail || errMsg;
-                    } catch (e) {}
-                    
-                    if (xhr.status === 401) {
-                        localStorage.removeItem('whisper_username');
-                        localStorage.removeItem('whisper_password');
-                        showAuthScreen();
-                        alert('Сессия истекла или неверные учетные данные. Пожалуйста, авторизуйтесь заново.');
-                        return;
-                    }
-                    
-                    alert('Ошибка: ' + errMsg);
-                    resetUI();
-                    return;
-                }
-                
-                // Process any leftover in the buffer
-                if (buffer.trim() !== "") {
-                    try {
-                        const data = JSON.parse(buffer);
-                        if (data.status === "completed") {
-                            progressContainer.style.display = 'none';
-                            loadingState.style.display = 'none';
-                            resultState.style.display = 'flex';
-
-                            currentResult.text = data.text;
-                            currentResult.filename = data.filename;
-
-                            resultFilename.innerText = file.name;
-                            resultTime.innerText = `Время обработки: ${data.duration_seconds} сек`;
-                            transcriptionContent.value = data.text;
-                        }
-                    } catch(e) {}
-                }
-            };
-
-            xhr.onerror = function() {
-                progressContainer.style.display = 'none';
-                alert('Произошла сетевая ошибка при загрузке файла.');
-                resetUI();
-            };
-
-            xhr.send(formData);
-        }
-
-        function resetUI() {
-            fileInput.value = '';
-            uploadState.style.display = 'block';
-            loadingState.style.display = 'none';
-            resultState.style.display = 'none';
-            document.getElementById('progress-container').style.display = 'none';
-        }
-
-        btnReset.addEventListener('click', resetUI);
-
-        // Copy functionality
-        btnCopy.addEventListener('click', () => {
-            transcriptionContent.select();
-            navigator.clipboard.writeText(transcriptionContent.value)
-                .then(() => {
-                    toast.classList.add('show');
-                    setTimeout(() => {
-                        toast.classList.remove('show');
-                    }, 2500);
-                })
-                .catch(err => {
-                    console.error('Не удалось скопировать: ', err);
                 });
-        });
-
-        // Download functionality
-        btnDownload.addEventListener('click', () => {
-            const element = document.createElement('a');
-            const file = new Blob([transcriptionContent.value], {type: 'text/plain;charset=utf-8'});
-            element.href = URL.createObjectURL(file);
-            element.download = `${currentResult.filename}_транскрипция.txt`;
-            document.body.appendChild(element);
-            element.click();
-            document.body.removeChild(element);
-        });
-
-        // Toggle diarization settings visibility
-        const diarizeToggle = document.getElementById('diarize-toggle');
-        const settingsGrid = document.getElementById('settings-grid');
-        
-        diarizeToggle.addEventListener('change', () => {
-            if (diarizeToggle.checked) {
-                settingsGrid.classList.remove('collapsed');
-            } else {
-                settingsGrid.classList.add('collapsed');
             }
-        });
-
-        // Conditional validation for diarization speaker inputs
-        const numSpeakersInput = document.getElementById('num-speakers');
-        const minSpeakersInput = document.getElementById('min-speakers');
-        const maxSpeakersInput = document.getElementById('max-speakers');
-
-        function updateSpeakerInputsState() {
-            if (numSpeakersInput.value.trim() !== "") {
-                minSpeakersInput.disabled = true;
-                maxSpeakersInput.disabled = true;
-                minSpeakersInput.parentElement.style.opacity = "0.35";
-                maxSpeakersInput.parentElement.style.opacity = "0.35";
-            } else if (minSpeakersInput.value.trim() !== "" || maxSpeakersInput.value.trim() !== "") {
-                numSpeakersInput.disabled = true;
-                numSpeakersInput.parentElement.style.opacity = "0.35";
+            
+            function startDemo() {
+                player.classList.add('playing');
+                playBtn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
+                output.innerHTML = '';
                 
-                minSpeakersInput.disabled = false;
-                maxSpeakersInput.disabled = false;
-                minSpeakersInput.parentElement.style.opacity = "1";
-                maxSpeakersInput.parentElement.style.opacity = "1";
-            } else {
-                numSpeakersInput.disabled = false;
-                minSpeakersInput.disabled = false;
-                maxSpeakersInput.disabled = false;
+                demoPhrases.forEach((phrase, index) => {
+                    const t = setTimeout(() => {
+                        const line = document.createElement('div');
+                        line.classList.add('transcript-line');
+                        line.innerHTML = `
+                            <span class="line-time">[${phrase.time}]</span>
+                            <span class="line-speaker ${phrase.spClass}">${phrase.speaker}:</span>
+                            <span class="line-text" id="typewriter-${index}"></span>
+                        `;
+                        output.appendChild(line);
+                        
+                        setTimeout(() => line.classList.add('visible'), 50);
+                        
+                        let charIdx = 0;
+                        const txtElem = document.getElementById(`typewriter-${index}`);
+                        const interval = setInterval(() => {
+                            if (charIdx < phrase.text.length) {
+                                txtElem.textContent += phrase.text.charAt(charIdx);
+                                charIdx++;
+                                output.scrollTop = output.scrollHeight;
+                            } else {
+                                clearInterval(interval);
+                            }
+                        }, 30);
+                        intervals.push(interval);
+                        
+                    }, (index * 4000) + 500);
+                    
+                    intervals.push(t);
+                });
                 
-                numSpeakersInput.parentElement.style.opacity = "1";
-                minSpeakersInput.parentElement.style.opacity = "1";
-                maxSpeakersInput.parentElement.style.opacity = "1";
+                const endTimeout = setTimeout(() => {
+                    stopDemo();
+                }, 14500);
+                intervals.push(endTimeout);
             }
-        }
-
-        numSpeakersInput.addEventListener('input', updateSpeakerInputsState);
-        minSpeakersInput.addEventListener('input', updateSpeakerInputsState);
-        maxSpeakersInput.addEventListener('input', updateSpeakerInputsState);
-        
-        // Initial sync
-        updateSpeakerInputsState();
-
-        // Authentication UI Logic
-        function showAuthScreen() {
-            document.getElementById('main-container').style.display = 'none';
-            document.getElementById('auth-screen').style.display = 'flex';
-            document.getElementById('auth-username').value = '';
-            document.getElementById('auth-password').value = '';
-            document.getElementById('auth-error-msg').style.display = 'none';
-        }
-
-        function showMainScreen() {
-            document.getElementById('auth-screen').style.display = 'none';
-            document.getElementById('main-container').style.display = 'block';
-            resetUI();
-        }
-
-        window.handleLogin = function(event) {
-            event.preventDefault();
-            const username = document.getElementById('auth-username').value;
-            const password = document.getElementById('auth-password').value;
-            const errorMsg = document.getElementById('auth-error-msg');
             
-            errorMsg.style.display = 'none';
+            function stopDemo() {
+                player.classList.remove('playing');
+                playBtn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+                intervals.forEach(i => clearTimeout(i) || clearInterval(i));
+                intervals = [];
+            }
+
+            // --- ROI Calculator Logic ---
+            const hoursSlider = document.getElementById('roiHours');
+            const hoursVal = document.getElementById('roiHoursValue');
+            const cloudCostVal = document.getElementById('cloudCost');
+            const ourCostVal = document.getElementById('ourCost');
+            const savingsVal = document.getElementById('savingsValue');
             
-            fetch('/api/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ username: username, password: password })
-            })
-            .then(response => {
-                if (response.ok) {
-                    localStorage.setItem('whisper_username', username);
-                    localStorage.setItem('whisper_password', password);
-                    showMainScreen();
+            if (hoursSlider) {
+                const updateROI = () => {
+                    const hours = parseInt(hoursSlider.value);
+                    hoursVal.textContent = `${hours} ч`;
+                    
+                    // Cloud API (Yandex SpeechKit ~0.60 ₽ / 15 sec -> 144 ₽ / hour)
+                    const cloudCost = hours * 144; 
+                    
+                    // Select licence cost
+                    let ourCost = 19900; // Старт (до 300 ч/мес)
+                    if (hours > 1500) {
+                        ourCost = 149900; // Корпорация (безлимит)
+                    } else if (hours > 300) {
+                        ourCost = 49900; // Бизнес (до 1500 ч/мес)
+                    }
+                    
+                    const savings = cloudCost - ourCost;
+                    
+                    cloudCostVal.textContent = `${cloudCost.toLocaleString('ru-RU')} ₽`;
+                    ourCostVal.textContent = `${ourCost.toLocaleString('ru-RU')} ₽`;
+                    
+                    if (savings <= 0) {
+                        savingsVal.style.color = '#ef4444';
+                        savingsVal.style.fontSize = '1.1rem';
+                        savingsVal.textContent = 'Окупается при росте объема';
+                    } else {
+                        savingsVal.style.color = '#10b981';
+                        savingsVal.style.fontSize = '1.8rem';
+                        savingsVal.textContent = `+${savings.toLocaleString('ru-RU')} ₽/мес`;
+                    }
+                };
+                
+                hoursSlider.addEventListener('input', updateROI);
+                updateROI(); // Init values
+            }
+
+            // --- Modal Dialog Logic ---
+            const modal = document.getElementById('demoModal');
+            const formState = document.getElementById('modalFormState');
+            const successState = document.getElementById('modalSuccessState');
+            const formError = document.getElementById('modalErrorMsg');
+            const demoForm = document.getElementById('demoRequestForm');
+
+            window.openDemoModal = () => {
+                if (modal) {
+                    modal.classList.add('active');
+                    formState.style.display = 'block';
+                    successState.style.display = 'none';
+                    formError.style.display = 'none';
+                    if (demoForm) demoForm.reset();
+                    document.body.style.overflow = 'hidden';
+                }
+            };
+
+            window.closeDemoModal = () => {
+                if (modal) {
+                    modal.classList.remove('active');
+                    document.body.style.overflow = '';
+                }
+            };
+
+            if (modal) {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        closeDemoModal();
+                    }
+                });
+            }
+
+            window.submitDemoForm = async (event) => {
+                event.preventDefault();
+                formError.style.display = 'none';
+                
+                const btn = event.target.querySelector('button[type="submit"]');
+                const origBtnText = btn.textContent;
+                btn.textContent = 'Отправка...';
+                btn.disabled = true;
+                
+                const name = document.getElementById('leadName').value;
+                const company = document.getElementById('leadCompany').value;
+                const email = document.getElementById('leadEmail').value;
+                const phone = document.getElementById('leadPhone').value;
+                const message = document.getElementById('leadMessage').value;
+                
+                try {
+                    const response = await fetch('/api/request-demo', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ name, company, email, phone, message })
+                    });
+                    
+                    const data = await response.json();
+                    if (response.ok) {
+                        formState.style.display = 'none';
+                        successState.style.display = 'block';
+                    } else {
+                        formError.textContent = data.detail || 'Произошла ошибка при отправке заявки.';
+                        formError.style.display = 'block';
+                    }
+                } catch (error) {
+                    formError.textContent = 'Ошибка сети. Пожалуйста, проверьте интернет-соединение.';
+                    formError.style.display = 'block';
+                } finally {
+                    btn.textContent = origBtnText;
+                    btn.disabled = false;
+                }
+            };
+            
+            // --- Header Scroll Effect ---
+            const mainHeader = document.querySelector('header');
+            
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 20) {
+                    mainHeader.classList.add('scrolled');
                 } else {
-                    errorMsg.style.display = 'block';
+                    mainHeader.classList.remove('scrolled');
                 }
-            })
-            .catch(err => {
-                errorMsg.innerText = 'Ошибка подключения к серверу';
-                errorMsg.style.display = 'block';
             });
-        };
-
-        // Auth Check on load
-        const storedUser = localStorage.getItem('whisper_username');
-        const storedPass = localStorage.getItem('whisper_password');
-        if (storedUser && storedPass) {
-            showMainScreen();
-            
-            fetch('/api/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ username: storedUser, password: storedPass })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    localStorage.removeItem('whisper_username');
-                    localStorage.removeItem('whisper_password');
-                    showAuthScreen();
-                }
-            })
-            .catch(() => {});
-        } else {
-            showAuthScreen();
-        }
+        });
     </script>
+
+    <!-- Modal for Demo Request -->
+    <div id="demoModal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeDemoModal()" aria-label="Закрыть">&times;</button>
+            
+            <div id="modalFormState">
+                <h3 style="margin-top: 0; margin-bottom: 10px; font-size: 1.45rem;">Заявка на пилотный доступ</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 24px; line-height: 1.5;">
+                    Оставьте контактные данные. Мы свяжемся с вами для согласования параметров пилотного развертывания в вашем контуре.
+                </p>
+                <form id="demoRequestForm" onsubmit="submitDemoForm(event)">
+                    <div class="form-group">
+                        <label for="leadName">Ваше имя *</label>
+                        <input type="text" id="leadName" required placeholder="Иван Иванов">
+                    </div>
+                    <div class="form-group">
+                        <label for="leadCompany">Название компании *</label>
+                        <input type="text" id="leadCompany" required placeholder="ООО «Ромашка»">
+                    </div>
+                    <div class="form-group">
+                        <label for="leadEmail">Корпоративный Email *</label>
+                        <input type="email" id="leadEmail" required placeholder="name@company.ru">
+                    </div>
+                    <div class="form-group">
+                        <label for="leadPhone">Телефон *</label>
+                        <input type="tel" id="leadPhone" required placeholder="+7 (999) 999-99-99">
+                    </div>
+                    <div class="form-group">
+                        <label for="leadMessage">Сообщение (опционально)</label>
+                        <textarea id="leadMessage" rows="2" placeholder="Опишите ваши задачи..."></textarea>
+                    </div>
+                    <div id="modalErrorMsg" class="form-error" style="display: none;"></div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 12px; padding: 14px; font-weight: 700;">Отправить заявку</button>
+                </form>
+            </div>
+            
+            <div id="modalSuccessState" style="display: none; text-align: center; padding: 20px 0;">
+                <div class="success-icon-wrap">
+                    <svg class="success-icon" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                </div>
+                <h3 style="font-size: 1.4rem; margin-bottom: 10px;">Заявка успешно принята!</h3>
+                <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; margin-top: 12px; max-width: 360px; margin-left: auto; margin-right: auto;">
+                    Мы свяжемся с вами в течение 15 минут для обсуждения пилотного развертывания и подготовки NDA.
+                </p>
+                <button class="btn btn-outline" onclick="closeDemoModal()" style="margin-top: 24px; min-width: 120px;">Закрыть</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
